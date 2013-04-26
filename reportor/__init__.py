@@ -82,6 +82,7 @@ class ReportRun:
                 src, dst_path = pat, self.output_dir
 
             # Expand globs; files are relative to cwd
+            # TODO: Check if src is a dir, and then copy everything inside
             for f in glob.glob(os.path.join(self.cwd, src)):
                 if os.path.isdir(dst_path):
                     dst = os.path.join(dst_path, os.path.basename(f))
@@ -187,7 +188,7 @@ def run_manifest(m, basedir, now):
         for name, config, proc in running[:]:
             if not proc.alive:
                 proc.wait()
-                log.info("%s finished (%is elapsed)", name, proc.end_time - proc.start_time)
+                log.info("%s: finished (%is elapsed)", name, proc.end_time - proc.start_time)
                 finished.add(name)
                 held_locks -= set(config.get('locks', []))
                 running.remove((name, config, proc))
@@ -195,59 +196,3 @@ def run_manifest(m, basedir, now):
                 if time.time() - proc.start_time > config.get('maxtime', 3600):
                     log.info("killing %s; it's taking too long", name)
                     proc.kill()
-
-
-def main():
-    import argparse
-    parser = argparse.ArgumentParser()
-    parser.set_defaults(
-        log_level=logging.INFO,
-    )
-    parser.add_argument("-v", "--verbose", action="store_const", const=logging.DEBUG, dest="log_level")
-    parser.add_argument("-q", "--quiet", action="store_const", const=logging.WARN, dest="log_level")
-    parser.add_argument("-o", "--output-dir", dest="output_dir", required=True)
-    parser.add_argument("-m", "--manifest", dest="manifest", required=True)
-    parser.add_argument("-d", "--date", dest="date", type=int, help="date to use, in epoch time")
-    parser.add_argument("-l", "--logfile", dest="logfile")
-    parser.add_argument("-s", "--symlink", dest="symlink")
-    parser.add_argument(dest='when', nargs='+')
-
-    options = parser.parse_args()
-
-    # Set umask so our files are readable by everyone
-    os.umask(0o022)
-
-    # TODO: add global locking to prevent running on top of ourselves?
-    # TODO: create index for all reports run in output_dir?
-    if options.date:
-        now = datetime.utcfromtimestamp(options.date)
-    else:
-        now = datetime.utcnow()
-    output_dir = now.strftime(options.output_dir)
-
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-
-    if not options.logfile:
-        logging.basicConfig(level=options.log_level, format="%(asctime)s - %(message)s")
-    else:
-        logfile = os.path.join(output_dir, options.logfile)
-        logging.basicConfig(level=options.log_level, format="%(asctime)s - %(message)s", filename=logfile)
-
-    m = parse_manifest(open(options.manifest), options.when)
-    log.debug("manifest: %s", m)
-    run_manifest(m, output_dir, now)
-
-    if options.symlink:
-        # Add a symlink from 
-        log.debug("%s -> %s", output_dir, options.symlink)
-        try:
-            if os.path.exists(options.symlink):
-                os.unlink(options.symlink)
-            os.symlink(os.path.abspath(output_dir), options.symlink)
-        except OSError:
-            log.error("Couldn't update symlink %s", options.symlink, exc_info=True)
-
-
-if __name__ == '__main__':
-    main()

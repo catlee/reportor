@@ -225,6 +225,9 @@ def main():
         now = datetime.utcnow()
     output_dir = now.strftime(options.output_dir)
 
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
     if not options.logfile:
         logging.basicConfig(level=options.log_level, format="%(asctime)s - %(message)s")
     else:
@@ -233,7 +236,7 @@ def main():
 
     m = parse_manifest(open(options.manifest), options.when)
     log.debug("manifest: %s", m)
-    #run_manifest(m, output_dir, now)
+    run_manifest(m, output_dir, now)
 
     if options.symlink:
         # Add a symlink from 

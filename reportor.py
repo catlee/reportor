@@ -31,6 +31,8 @@ import logging
 import subprocess
 import glob
 import shutil
+import calendar
+from datetime import datetime
 
 import yaml
 
@@ -55,15 +57,17 @@ class ReportRun:
     start_time = None
     end_time = None
 
-    def __init__(self, name, config, basedir):
+    def __init__(self, name, config, basedir, now):
         self.name = name
         self.config = config
         self.cwd = config.get('cwd', name)
         self.basedir = basedir
+        self.now = now
         env = os.environ.copy()
         self.output_dir = os.path.join(basedir, name)
         env.update({
             'OUTPUT_DIR': self.output_dir,
+            'REPORTOR_NOW': str(calendar.timegm(now.utctimetuple())),
         })
         self.env = env
         self.stdout_path = os.path.join(self.output_dir, config.get('stdout', 'output.txt'))
@@ -104,10 +108,13 @@ class ReportRun:
         self.stderr = open(self.stderr_path, 'wb')
         devnull = open(os.devnull, 'rw')
         try:
-            self.proc = subprocess.Popen(self.config['command'], cwd=self.cwd,
+            log.debug("%s: command: %s", self.name, self.config['command'])
+            log.debug("%s: cwd: %s", self.name, self.cwd)
+            self.proc = subprocess.Popen(self.config['command'], shell=True, cwd=self.cwd,
                                          env=self.env, stdout=self.stdout,
                                          stderr=self.stderr, stdin=devnull)
         except OSError, e:
+            log.debug("%s: failed to start", self.name, exc_info=True)
             self.stdout.close()
             self.stderr.write(str(e))
             self.stderr.close()
@@ -142,7 +149,7 @@ def parse_manifest(m, whens):
     return m
 
 
-def run_manifest(m, basedir):
+def run_manifest(m, basedir, now):
     to_run = m.items()
     running = []
     finished = set()
@@ -164,8 +171,8 @@ def run_manifest(m, basedir):
 
             # All set!
             # Let's run it!
-            log.info("%s starting", name)
-            proc = ReportRun(name, config, basedir)
+            log.info("%s: starting", name)
+            proc = ReportRun(name, config, basedir, now)
             proc.start()
             held_locks |= set(config.get('locks', []))
             running.append((name, config, proc))
@@ -198,16 +205,22 @@ def main():
     parser.add_argument("-q", "--quiet", action="store_const", const=logging.WARN, dest="log_level")
     parser.add_argument("-o", "--output-dir", dest="output_dir", required=True)
     parser.add_argument("-m", "--manifest", dest="manifest", required=True)
+    parser.add_argument("-d", "--date", dest="date", type=int, help="date to use, in epoch time")
     parser.add_argument(dest='when', nargs='+')
 
     options = parser.parse_args()
 
     # TODO: output log to output_dir
     # TODO: create index for all reports run in output_dir?
+    if options.date:
+        now = datetime.utcfromtimestamp(options.date)
+    else:
+        now = datetime.utcnow()
+    output_dir = now.strftime(options.output_dir)
     logging.basicConfig(level=options.log_level, format="%(asctime)s - %(message)s")
     m = parse_manifest(open(options.manifest), options.when)
     log.debug("manifest: %s", m)
-    run_manifest(m, options.output_dir)
+    run_manifest(m, output_dir, now)
 
 
 if __name__ == '__main__':

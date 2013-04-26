@@ -208,21 +208,42 @@ def main():
     parser.add_argument("-o", "--output-dir", dest="output_dir", required=True)
     parser.add_argument("-m", "--manifest", dest="manifest", required=True)
     parser.add_argument("-d", "--date", dest="date", type=int, help="date to use, in epoch time")
+    parser.add_argument("-l", "--logfile", dest="logfile")
+    parser.add_argument("-s", "--symlink", dest="symlink")
     parser.add_argument(dest='when', nargs='+')
 
     options = parser.parse_args()
 
-    # TODO: output log to output_dir
+    # Set umask so our files are readable by everyone
+    os.umask(0o022)
+
+    # TODO: add global locking to prevent running on top of ourselves?
     # TODO: create index for all reports run in output_dir?
     if options.date:
         now = datetime.utcfromtimestamp(options.date)
     else:
         now = datetime.utcnow()
     output_dir = now.strftime(options.output_dir)
-    logging.basicConfig(level=options.log_level, format="%(asctime)s - %(message)s")
+
+    if not options.logfile:
+        logging.basicConfig(level=options.log_level, format="%(asctime)s - %(message)s")
+    else:
+        logfile = os.path.join(output_dir, options.logfile)
+        logging.basicConfig(level=options.log_level, format="%(asctime)s - %(message)s", filename=logfile)
+
     m = parse_manifest(open(options.manifest), options.when)
     log.debug("manifest: %s", m)
-    run_manifest(m, output_dir, now)
+    #run_manifest(m, output_dir, now)
+
+    if options.symlink:
+        # Add a symlink from 
+        log.debug("%s -> %s", output_dir, options.symlink)
+        try:
+            if os.path.exists(options.symlink):
+                os.unlink(options.symlink)
+            os.symlink(os.path.abspath(output_dir), options.symlink)
+        except OSError:
+            log.error("Couldn't update symlink %s", options.symlink, exc_info=True)
 
 
 if __name__ == '__main__':

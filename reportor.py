@@ -73,12 +73,7 @@ class ReportRun:
         self.stdout_path = os.path.join(self.output_dir, config.get('stdout', 'output.txt'))
         self.stderr_path = os.path.join(self.output_dir, config.get('stderr', 'logs/output.log'))
 
-    def start(self):
-        self.start_time = time.time()
-
-        if not os.path.exists(self.output_dir):
-            os.makedirs(self.output_dir)
-
+    def copy_files(self):
         # Copy files specified
         for pat in self.config.get('copy_files', []):
             if not isinstance(pat, basestring) and len(pat) == 2:
@@ -93,6 +88,12 @@ class ReportRun:
                     copyfile(f, dst)
                 else:
                     print "uh oh"
+
+    def start(self):
+        self.start_time = time.time()
+
+        if not os.path.exists(self.output_dir):
+            os.makedirs(self.output_dir)
 
         if 'command' not in self.config:
             self.end_time = time.time()
@@ -131,6 +132,7 @@ class ReportRun:
         if self.proc:
             self.proc.wait()
             self.end_time = time.time()
+        self.copy_files()
 
     def kill(self):
         if self.proc:

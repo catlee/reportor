@@ -45,6 +45,9 @@ def copyfile(src, dst):
     """
     if not os.path.exists(dst) or os.path.getmtime(src) > os.path.getmtime(dst):
         log.info("Copying %s to %s", src, dst)
+        dst_dir = os.path.dirname(dst)
+        if not os.path.exists(dst_dir):
+            os.makedirs(dst_dir)
         shutil.copyfile(src, dst)
         shutil.copymode(src, dst)
         shutil.copystat(src, dst)
@@ -82,8 +85,16 @@ class ReportRun:
                 src, dst_path = pat, self.output_dir
 
             # Expand globs; files are relative to cwd
-            # TODO: Check if src is a dir, and then copy everything inside
             for f in glob.glob(os.path.join(self.cwd, src)):
+                if os.path.isdir(f):
+                    assert os.path.isdir(dst_path)
+                    for root, dirs, files in os.walk(f):
+                        for src_file in files:
+                            src_name = os.path.join(root, src_file)
+                            rel_name = os.path.relpath(src_name, self.cwd)
+                            dst_name = os.path.join(dst_path, rel_name)
+                            copyfile(src_name, dst_name)
+
                 if os.path.isdir(dst_path):
                     dst = os.path.join(dst_path, os.path.basename(f))
                     copyfile(f, dst)

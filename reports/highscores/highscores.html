@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="highscores.css">
+<link href='http://fonts.googleapis.com/css?family=Michroma|Press+Start+2P' rel='stylesheet' type='text/css'>
+<script type="text/javascript" src="jquery-1.8.1.min.js"></script>
+<script type="text/javascript">
+    /* From http://stackoverflow.com/questions/2901102/how-to-print-number-with-commas-as-thousands-separators-in-javascript */
+    function numberWithCommas(x) {
+        return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    }
+    gData = null;
+    gSortBy = "hours";
+    gExpandedUsers = [];
+    function updateScores() {
+        var table = $("#scores");
+        table.empty();
+        table.append("<tr><th id=\"userheader\">User</th><th id=\"hoursheader\">Hours</th><th id=\"jobsheader\">Jobs</th></tr>");
+        $("#hoursheader").bind("click", function() { gSortBy = "hours"; updateScores(); });
+        $("#jobsheader").bind("click", function() { gSortBy = "jobs"; updateScores(); });
+        $("#userheader").bind("click", function() { gSortBy = "user"; updateScores(); });
+        var max_user_len = 0;
+        /* Sort our data */
+        if (gSortBy == "hours") {
+            gData.scores.sort(function(one, two) { return two.hours - one.hours; });
+        }
+        else if (gSortBy == "jobs") {
+            gData.scores.sort(function(one, two) { return two.jobs - one.jobs; });
+        }
+        else if (gSortBy == "user") {
+            gData.scores.sort(function(one, two) { return two.user.toLowerCase() < one.user.toLowerCase(); });
+        }
+        /* Figure out how big our fields should be */
+        $.each(gData.scores, function(index, value) {
+                var user = value.user;
+                if (user.length > max_user_len) {
+                    max_user_len = user.length;
+                }
+        });
+        max_user_len += 4;
+        $.each(gData.scores, function(index, value) {
+                var hours = numberWithCommas(Math.round(value.hours));
+                var jobs = numberWithCommas(Math.round(value.jobs));
+                var user = value.user;
+                var row = "<tr><td class=\"user\">" + user;
+                /* Pad with .... */
+                for (var i=0; i<(max_user_len - user.length); ++i) {
+                    row += ".";
+                }
+                row += "</td><td class=\"hours\">" + hours;
+                row += "</td><td class=\"jobs\">" + jobs;
+                row += "</td></tr>";
+                row = $(row);
+                table.append(row);
+
+                /* Add the hidden rows for the per-checkin data */
+                var pushrows = [];
+                var userrow = row;
+                /* Sort the pushes according to jobs or hours*/
+                if (gSortBy == "jobs") {
+                    value.pushes.sort(function(a, b) { return b.jobs - a.jobs; } );
+                } else {
+                    value.pushes.sort(function(a, b) { return b.hours - a.hours; } );
+                }
+                $.each(value.pushes, function(index, push) {
+                    var rev = push.revision;
+                    var hours = numberWithCommas(Math.round(push.hours));
+                    var jobs = numberWithCommas(Math.round(push.jobs));
+                    row = "<tr>";
+                    row += "<td class=\"push\"><a href=\"http://tbpl.mozilla.org/?tree=Try&rev="+rev+"\">" + rev + "</a></td>";
+                    row += "<td class=\"hours\">" + hours + "</td>";
+                    row += "<td class=\"jobs\">" + jobs + "</td>";
+                    row += "</tr>";
+                    row = $(row);
+                    if (gExpandedUsers.indexOf(user) == -1) {
+                        row.css("display", "none");
+                    }
+                    table.append(row);
+                    pushrows.push(row);
+                });
+                userrow.bind("click", function() {
+                        var display;
+                        if (pushrows[0].css("display") == "none") {
+                            gExpandedUsers.push(user);
+                            display = "table-row";
+                        } else {
+                            while (1) {
+                                var i = gExpandedUsers.indexOf(user);
+                                if (i == -1) break
+                                gExpandedUsers = gExpandedUsers.slice(0, i).concat(gExpandedUsers.slice(i+1));
+                            }
+                            display = "none";
+                        }
+                        $.each(pushrows, function(index, row) {
+                            row.css("display", display);
+                        });
+                });
+                            
+        });
+        $("#footer").html("For pushes from " + gData['fromdate'] + " to " + gData['todate'] + ". " +
+                          "Generated at " + gData['generated'] + " in " + Math.floor(gData['reporttime']) + "s.");
+    }
+    function splashScreen() {
+      $("body").css("visibility", "hidden");
+      $("html").addClass("splash");
+      setTimeout(function() {
+        $("html").removeClass("splash");
+        $("body").css("visibility", "visible");
+        setTimeout(splashScreen, 20000);
+      }, 5000);
+    }
+    $(document).ready(function() {
+            // Load the scores
+            $.getJSON("highscores.json",
+              function(data) {
+                gData = data; updateScores();
+                setTimeout(splashScreen, 20000);
+               });
+        });
+</script>
+</head>
+<body>
+<div id="title">Try High Scores</div>
+<div id="container">
+    <table id="scores">
+    </table>
+</div>
+<div id="footer">
+</div>
+</body>
+</html>

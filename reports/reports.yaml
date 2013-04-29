@@ -1,0 +1,31 @@
+highscores:
+    when: daily
+    copy_files:
+        - "*.png"
+        - "*.css"
+        - "*.js"
+        - "*.json"
+        - "*.html"
+    command: python highscores.py
+    stdout: highscores.json
+    locks: [statusdb]
+
+branch_times:
+    when: daily
+    command: python branch_times.py
+    locks: [statusdb]
+
+branch_load:
+    when: daily
+    command: python branch_load.py
+    locks: [statusdb]
+
+hidden:
+    when: daily
+    command: python hidden.py
+    stdout: hidden.json
+    locks: [statusdb]
+    copy_files:
+        - "*.html"
+        - "*.css"
+        - flot/

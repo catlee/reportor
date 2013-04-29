@@ -72,6 +72,8 @@ class ReportRun:
             'OUTPUT_DIR': self.output_dir,
             'REPORTOR_NOW': str(calendar.timegm(now.utctimetuple())),
         })
+        if os.path.exists('credentials.ini'):
+            env['REPORTOR_CREDS'] = os.path.abspath('credentials.ini')
         self.env = env
         self.stdout_path = os.path.join(self.output_dir, config.get('stdout', 'output.txt'))
         self.stderr_path = os.path.join(self.output_dir, config.get('stderr', 'logs/output.log'))

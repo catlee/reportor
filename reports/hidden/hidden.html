@@ -1,0 +1,120 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <!--[if lte IE 8]><script language="javascript" type="text/javascript" src="flot/excanvas.min.js"></script><![endif]-->
+    <script language="javascript" type="text/javascript" src="flot/jquery.js"></script>
+    <script language="javascript" type="text/javascript" src="flot/jquery.flot.js"></script>
+    <script language="javascript" type="text/javascript" src="flot/jquery.flot.pie.js"></script>
+    <script language="javascript" type="text/javascript" src="flot/jquery.flot.stack.js"></script>
+    <script language="javascript" type="text/javascript" src="flot/jquery.flot.categories.js"></script>
+<script type="text/javascript">
+
+function showTooltip(x, y, contents) {
+        $("<div id='tooltip'>" + contents + "</div>").css({
+                position: "absolute",
+                display: "none",
+                top: y + 5,
+                left: x + 5,
+                border: "1px solid #fdd",
+                padding: "2px",
+                "background-color": "#fee",
+                opacity: 0.80
+        }).appendTo("body").fadeIn(200);
+}
+
+var gData = {};
+var gBuilderData = {};
+var options = {
+    series: {
+        bars: {
+            show: true,
+            barWidth: 0.6,
+            align: "center",
+        },
+    },
+    xaxis: {
+        mode: "categories",
+    },
+    grid: {
+        hoverable: true,
+        clickable: true,
+    },
+};
+
+function plotAll()
+{
+    var total_data = [];
+    $.each(gData['total_hidden_time'], function(key, value) {
+        var label = key + " " + parseInt(value['sum'] / 3600.0) + "h";
+        gBuilderData[label] = value['builders'];
+        total_data.push([key, value['sum']]);
+    });
+    total_data.sort(function(a,b) {return b[1]-a[1];});
+
+    var failed_data = [];
+    $.each(gData['failed_hidden_time'], function(key, value) {
+        var label = key + " " + parseInt(value['sum'] / 3600.0) + "h";
+        failed_data.push([key, value['sum']]);
+    });
+    failed_data.sort(function(a,b) {return b[1]-a[1];});
+
+    $.plot("#chart", [
+            {
+                data: total_data,
+                color: "green",
+            },
+            {
+                data: failed_data,
+                color: "red",
+            }],
+            options);
+}
+
+function plotBuilder(builder)
+{
+    var builderData = gBuilderData[builder];
+    if (!builderData) {
+        return;
+    }
+    var series = [];
+    $.each(builderData, function(key, value) {
+        series.push({
+            label: key + " " + parseInt(value/3600.0) + "h",
+            data: value,
+        });
+    });
+    series.sort(function(a,b) {return b.data-a.data});
+    $.plot("#chart", series, options);
+}
+
+// On load
+$(function() {
+    $.getJSON("hidden.json", function(data) {
+        gData = data;
+        plotAll();
+        $("#chart").bind("plotclick", function(event, pos, obj) {
+            if (!obj) {
+                return;
+            }
+            plotBuilder(obj.series.label);
+        });
+        $("#chart").bind("plothover", function(event, pos, obj) {
+            if (!obj) {
+                return;
+            }
+            $("#tooltip").remove();
+            console.log(obj);
+            //showTooltip(pos.pageX, pos.pageY, obj.series.label + " (" + parseInt(obj.series.percent) + "%)");
+        });
+        //$("#reset").bind("click", function() {plotAll();});
+
+    });
+});
+</script>
+</head>
+<body>
+    <div id="chart" style="width:1000px;height:600px"></div>
+    <p> <button id="reset">Reset</button></p>
+</body>
+</html>

@@ -1,5 +1,6 @@
 output
+reports/credentials.ini
 *.egg-info
-reports
 *.pyc
 *.swp
+*.lock

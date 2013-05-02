@@ -20,7 +20,7 @@ branch_load:
     locks: [scheduler_db]
 
 hidden:
-    when: daily
+    when: hourly
     command: python hidden.py
     stdout: hidden.json
     locks: [status_db]

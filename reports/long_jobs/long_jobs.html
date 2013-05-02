@@ -15,13 +15,19 @@ $(function() {
     $.getJSON("long_jobs.json", function(data) {
         var n = $("#long_running");
         n.empty();
-        n.append("<tr><th>Request id</th><th>Builder name</th><th>Running since</th></tr>");
+        n.append("<tr><th>Request id</th><th>Builder name</th><th>Running since</th><th>Master</th></tr>");
         $.each(data['long_running'], function(key, value) {
             var row = $("<tr>");
             row.append("<td>" + value['id'] + "</td>");
             row.append("<td>" + value['buildername'] + "</td>");
             var d = new Date(value['start_time'] * 1000);
             row.append("<td>" + d + "</td>");
+            var a = $("<a>");
+            a.attr("href", value['master_link']);
+            a.text(value['buildername']);
+            var c = $("<td>");
+            c.append(a)
+            row.append(c);
             n.append(row);
         });
 

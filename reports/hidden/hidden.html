@@ -5,7 +5,6 @@
     <!--[if lte IE 8]><script language="javascript" type="text/javascript" src="flot/excanvas.min.js"></script><![endif]-->
     <script language="javascript" type="text/javascript" src="flot/jquery.js"></script>
     <script language="javascript" type="text/javascript" src="flot/jquery.flot.js"></script>
-    <script language="javascript" type="text/javascript" src="flot/jquery.flot.pie.js"></script>
     <script language="javascript" type="text/javascript" src="flot/jquery.flot.stack.js"></script>
     <script language="javascript" type="text/javascript" src="flot/jquery.flot.categories.js"></script>
 <script type="text/javascript">
@@ -23,8 +22,17 @@ function showTooltip(x, y, contents) {
         }).appendTo("body").fadeIn(200);
 }
 
+function secondFormatter(val) {
+    var days = Math.floor(val / 86400.0);
+    val -= days * 86400;
+    var hours = Math.floor(val / 3600.0);
+    val -= hours * 3600;
+    var minutes = Math.floor(val / 60.0);
+    return days + "d " + hours + "h" + minutes + "m";
+}
+
 var gData = {};
-var gBuilderData = {};
+var gBranchData = {};
 var options = {
     series: {
         bars: {
@@ -35,6 +43,11 @@ var options = {
     },
     xaxis: {
         mode: "categories",
+        show: false,
+    },
+    yaxis: {
+        // mode: "time",
+        tickFormatter: secondFormatter,
     },
     grid: {
         hoverable: true,
@@ -46,15 +59,12 @@ function plotAll()
 {
     var total_data = [];
     $.each(gData['total_hidden_time'], function(key, value) {
-        var label = key + " " + parseInt(value['sum'] / 3600.0) + "h";
-        gBuilderData[label] = value['builders'];
         total_data.push([key, value['sum']]);
     });
     total_data.sort(function(a,b) {return b[1]-a[1];});
 
     var failed_data = [];
     $.each(gData['failed_hidden_time'], function(key, value) {
-        var label = key + " " + parseInt(value['sum'] / 3600.0) + "h";
         failed_data.push([key, value['sum']]);
     });
     failed_data.sort(function(a,b) {return b[1]-a[1];});
@@ -63,58 +73,79 @@ function plotAll()
             {
                 data: total_data,
                 color: "green",
+                label: "total hidden time",
             },
             {
                 data: failed_data,
                 color: "red",
+                label: "time for hidden failing jobs",
             }],
             options);
 }
 
-function plotBuilder(builder)
+function plotBranch(branch)
 {
-    var builderData = gBuilderData[builder];
-    if (!builderData) {
-        return;
-    }
-    var series = [];
-    $.each(builderData, function(key, value) {
-        series.push({
-            label: key + " " + parseInt(value/3600.0) + "h",
-            data: value,
-        });
+    var total_data = [];
+    $.each(gData['total_hidden_time'][branch]['builders'], function(key, value) {
+        total_data.push([key, value]);
     });
-    series.sort(function(a,b) {return b.data-a.data});
-    $.plot("#chart", series, options);
+    total_data.sort(function(a,b) {return b[1]-a[1];});
+
+    var failed_data = [];
+    $.each(gData['failed_hidden_time'][branch]['builders'], function(key, value) {
+        failed_data.push([key, value]);
+    });
+    failed_data.sort(function(a,b) {return b[1]-a[1];});
+
+    $.plot("#chart", [
+            {
+                data: total_data,
+                color: "green",
+                label: "total hidden time",
+            },
+            {
+                data: failed_data,
+                color: "red",
+                label: "time for hidden failing jobs",
+            }],
+            options);
 }
 
 // On load
 $(function() {
     $.getJSON("hidden.json", function(data) {
+        var start = new Date(data['start'] * 1000);
+        var end = new Date(data['end'] * 1000);
+        var report_start = new Date(data['report_run'] * 1000);
+        var report_elapsed = Math.round(data['report_elapsed']);
+        $("#title").text("Hidden jobs from " + start + " to " + end);
+        $("#footer").html("Generated on " + report_start + " in " + report_elapsed +"s");
         gData = data;
         plotAll();
         $("#chart").bind("plotclick", function(event, pos, obj) {
             if (!obj) {
                 return;
             }
-            plotBuilder(obj.series.label);
+            var branch = obj.series.data[obj.dataIndex][0];
+            plotBranch(branch);
         });
         $("#chart").bind("plothover", function(event, pos, obj) {
             if (!obj) {
                 return;
             }
             $("#tooltip").remove();
-            console.log(obj);
-            //showTooltip(pos.pageX, pos.pageY, obj.series.label + " (" + parseInt(obj.series.percent) + "%)");
+            var branch = obj.series.data[obj.dataIndex][0];
+            showTooltip(pos.pageX, pos.pageY, branch + " " + obj.series.label + " " + secondFormatter(obj.datapoint[1]));
         });
-        //$("#reset").bind("click", function() {plotAll();});
-
+        $("#reset").bind("click", function() {plotAll();});
     });
 });
 </script>
 </head>
 <body>
+    <p id="title" />
     <div id="chart" style="width:1000px;height:600px"></div>
     <p> <button id="reset">Reset</button></p>
+    <p id="footer" />
 </body>
 </html>

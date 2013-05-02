@@ -25,7 +25,7 @@ q = sa.text("""
             buildsets.sourcestampid = sourcestamps.id
         """)
 
-starttime = time.time()-30*86400
+starttime = time.time()-14*86400
 builds = scheduler_db.execute(q, starttime=starttime)
 
 branches = ['mozilla-central', 'mozilla-inbound', 'try-comm', 'try', 'mozilla-aurora',

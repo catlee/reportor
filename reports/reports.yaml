@@ -8,24 +8,32 @@ highscores:
         - "*.html"
     command: python highscores.py
     stdout: highscores.json
-    locks: [statusdb]
 
 branch_times:
     when: daily
     command: python branch_times.py
-    locks: [statusdb]
+    locks: [scheduler_db]
 
 branch_load:
     when: daily
     command: python branch_load.py
-    locks: [statusdb]
+    locks: [scheduler_db]
 
 hidden:
     when: daily
     command: python hidden.py
     stdout: hidden.json
-    locks: [statusdb]
+    locks: [status_db]
     copy_files:
         - "*.html"
         - "*.css"
         - flot/
+
+long_jobs:
+    when: hourly
+    command: python long_jobs.py
+    stdout: long_jobs.json
+    locks: [status_db]
+    copy_files:
+        - jquery.js
+        - long_jobs.html

@@ -37,3 +37,12 @@ long_jobs:
     copy_files:
         - jquery.js
         - long_jobs.html
+
+aws_times:
+    when: hourly
+    command: python aws_times.py
+    stdout: aws_times.json
+    locks: [status_db]
+    copy_files:
+        - flot/
+        - aws_times.html

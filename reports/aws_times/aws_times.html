@@ -18,21 +18,22 @@ $(function() {
             clickable: true,
         },
     };
-    $.getJSON("hidden.json", function(data) {
+    $.getJSON("aws_times.json", function(data) {
         var series = [];
-        $.each(data['total_hidden_time'], function(key, value) {
-            series.push({
-                label: key + " " + value['sum'] / 3600.0,
-                data: value['sum'],
-                });
-        });
-        series.sort(function(a,b) {return b.data-a.data});
-        $.plot("#chart", series, options);
+        series.push({label: "In-house time", data: data['total_time']-data['ec2_time']});
+        series.push({label: "EC2 time", data: data['ec2_time']});
+        $.plot("#time", series, options);
+
+        var series = [];
+        series.push({label: "In-house jobs", data: data['total_jobs']-data['ec2_jobs']});
+        series.push({label: "EC2 jobs", data: data['ec2_jobs']});
+        $.plot("#jobs", series, options);
     });
 });
 </script>
 </head>
 <body>
-    <div id="chart" style="width:1000px;height:600px" />
+    <div id="time" style="width:400px;height:400px" ></div>
+    <div id="jobs" style="width:400px;height:400px" ></div>
 </body>
 </html>

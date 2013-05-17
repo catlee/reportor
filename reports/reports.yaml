@@ -19,6 +19,25 @@ branch_load:
     command: python branch_load.py
     locks: [scheduler_db]
 
+end2end:
+    when: daily
+    command: python end2end.py -b integration/mozilla-inbound
+    stdout: end2end.json
+    locks: [scheduler_db]
+    copy_files:
+        - flot/
+        - end2end.html
+
+end2end_try:
+    when: daily
+    cwd: end2end
+    command: python end2end.py -b try
+    stdout: end2end.json
+    locks: [scheduler_db]
+    copy_files:
+        - flot/
+        - end2end.html
+
 hidden:
     when: hourly
     command: python hidden.py

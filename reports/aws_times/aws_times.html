@@ -5,12 +5,20 @@
     <script language="javascript" type="text/javascript" src="flot/jquery.flot.js"></script>
     <script language="javascript" type="text/javascript" src="flot/jquery.flot.pie.js"></script>
 <script type="text/javascript">
+function labelFormatter(label, series) {
+    return label + " " + Math.round(series.percent) + "%";
+}
+
 // On load
 $(function() {
     var options = {
         series: {
             pie: {
-                show: true
+                show: true,
+                label: {
+                    show: true,
+                    formatter: labelFormatter,
+                },
             },
         },
         grid: {
@@ -19,20 +27,26 @@ $(function() {
         },
     };
     $.getJSON("aws_times.json", function(data) {
+        var start = new Date(data['start'] * 1000);
+        var end = new Date(data['end'] * 1000);
+        $("#header").text("Report of jobs from " + start + " to " + end);
+        var inhouse_hours = Math.round((data['total_time'] - data['ec2_time']) / 3600);
+        var ec2_hours = Math.round(data['ec2_time'] / 3600);
         var series = [];
-        series.push({label: "In-house time", data: data['total_time']-data['ec2_time']});
-        series.push({label: "EC2 time", data: data['ec2_time']});
+        series.push({label: "In-house time " + inhouse_hours + "h", data: data['total_time']-data['ec2_time']});
+        series.push({label: "EC2 time " + ec2_hours + "h", data: data['ec2_time']});
         $.plot("#time", series, options);
 
         var series = [];
-        series.push({label: "In-house jobs", data: data['total_jobs']-data['ec2_jobs']});
-        series.push({label: "EC2 jobs", data: data['ec2_jobs']});
+        series.push({label: "In-house jobs (" + (data['total_jobs']-data['ec2_jobs']) + ")", data: data['total_jobs']-data['ec2_jobs']});
+        series.push({label: "EC2 jobs (" + data['ec2_jobs'] + ")", data: data['ec2_jobs']});
         $.plot("#jobs", series, options);
     });
 });
 </script>
 </head>
 <body>
+    <p id="header" />
     <div id="time" style="width:400px;height:400px" ></div>
     <div id="jobs" style="width:400px;height:400px" ></div>
 </body>

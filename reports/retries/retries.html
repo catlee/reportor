@@ -1,0 +1,87 @@
+<html>
+<head>
+<!--[if lte IE 8]><script language="javascript" type="text/javascript" src="flot/excanvas.min.js"></script><![endif]-->
+<script language="javascript" type="text/javascript" src="flot/jquery.js"></script>
+<script language="javascript" type="text/javascript" src="flot/jquery.flot.js"></script>
+<script language="javascript" type="text/javascript" src="flot/jquery.flot.time.js"></script>
+<script type="text/javascript">
+    // On load
+var options = {
+    series: {
+        lines: {show:true},
+        points: {show:true},
+    },
+    xaxis: {
+        mode: "time",
+    },
+    yaxis: {
+        min: 1,
+    },
+    grid: {
+        clickable: true,
+    },
+};
+
+function numericSort(a, b) {
+    // I can't believe I need to write this function
+    if (a < b) {
+        return -1;
+    } else if (a == b) {
+        return 0;
+    } else {
+        return 1;
+    }
+}
+
+function sum(l) {
+    var s = 0.0;
+    for (var i=0; i<l.length; ++i) {
+        s += l[i];
+    }
+    return s;
+}
+
+function avg(l) {
+    return sum(l) / l.length;
+}
+
+$(function() {
+    $.getJSON("retries.json", function(data) {
+        $("#header").text("for pushes from " + new Date(data.data_start*1000) + " to " + new Date(data.data_end*1000));
+        $("#footer").text("generated on " + new Date(data.report_start*1000) + " in " + data.report_elapsed + " seconds");
+
+        var data_by_date = new Object();
+        $.each(data.data, function(key, value) {
+            var d = (Math.floor(value[0] / (86400)) * 86400) * 1000;
+            if (!(d in data_by_date)) {
+                data_by_date[d] = [];
+            }
+            data_by_date[d].push(value[1]-1);
+        });
+
+        var series = [
+            {label: "jobs retried", data: []},
+            {label: "jobs scheduled", data: [], yaxis:2},
+        ];
+        $.each(data_by_date, function(d, counts) {
+            series[0].data.push([d, sum(counts)]);
+            series[1].data.push([d, counts.length]);
+        });
+        series[0].data.sort();
+        series[1].data.sort();
+
+        var plot = $.plot("#retries", series, options);
+        $("#retries").bind("plotclick", function(event, pos, item) {
+            console.log(series[item.dataIndex][2]);
+        });
+    });
+});
+</script>
+</head>
+<body>
+    <h1>retry metrics for mozilla-inbound</h1>
+    <p id="header" />
+    <div id="retries" style="width:800px; height:600px" ></div>
+    <p id="footer" />
+</body>
+</html>

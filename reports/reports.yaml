@@ -65,3 +65,21 @@ aws_times:
     copy_files:
         - flot/
         - aws_times.html
+
+coalescing:
+    when: hourly
+    command: python coalescing.py
+    stdout: coalescing.json
+    locks: [status_db]
+    copy_files:
+        - flot/
+        - coalescing.html
+
+retries:
+    when: hourly
+    command: python retries.py
+    stdout: retries.json
+    locks: [status_db]
+    copy_files:
+        - flot/
+        - retries.html

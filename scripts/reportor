@@ -67,7 +67,7 @@ def main():
         log.debug("chdir to %s", manifest_dir)
         if options.symlink:
             abs_symlink = os.path.abspath(options.symlink)
-            rel_symlink = os.path.relpath(abs_symlink, os.path.abspath(output_dir))
+            rel_symlink = os.path.relpath(os.path.abspath(output_dir), os.path.dirname(abs_symlink))
         else:
             rel_symlink = None
         os.chdir(manifest_dir)
@@ -75,13 +75,13 @@ def main():
 
         if rel_symlink:
             # Add a symlink from 
-            log.debug("%s -> %s", output_dir, rel_symlink)
+            log.debug("%s -> %s", abs_symlink, rel_symlink)
             try:
-                if os.path.exists(rel_symlink):
-                    os.unlink(rel_symlink)
-                os.symlink(os.path.abspath(output_dir), rel_symlink)
+                if os.path.exists(abs_symlink):
+                    os.unlink(abs_symlink)
+                os.symlink(rel_symlink, abs_symlink)
             except OSError:
-                log.error("Couldn't update symlink %s", rel_symlink, exc_info=True)
+                log.error("Couldn't update symlink %s", abs_symlink, exc_info=True)
     finally:
         lock.release()
 

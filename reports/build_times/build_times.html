@@ -1,0 +1,72 @@
+<html>
+<head>
+<!--[if lte IE 8]><script language="javascript" type="text/javascript" src="flot/excanvas.min.js"></script><![endif]-->
+<script language="javascript" type="text/javascript" src="flot/jquery.js"></script>
+<script language="javascript" type="text/javascript" src="flot/jquery.flot.js"></script>
+<script language="javascript" type="text/javascript" src="flot/jquery.flot.time.js"></script>
+<script language="javascript">
+// On load
+var g_options = {
+    grid: {
+        hoverable: true,
+        clickable: true,
+    },
+    xaxis: {
+        mode: "time",
+    },
+    legend: {
+        container: "#legend",
+    },
+};
+
+var g_data = null;
+
+function plot() {
+    var start = new Date(g_data['start'] * 1000);
+    var end = new Date(g_data['end'] * 1000);
+    $("#header").text("Report of jobs from " + start + " to " + end);
+    var series = [];
+    $.each(g_data['times'], function(builder, times) {
+        // Check the filters
+        if ($("#filter").val() != "") {
+            var filter = $("#filter").val().split(" ");
+            var exclude = true;
+            $.each(filter, function(i, f) {
+                if (f == "") {
+                    return;
+                }
+                if (builder.indexOf(f) >= 0) {
+                    exclude = false;
+                }
+            });
+            if (exclude) {
+                return;
+            }
+        }
+        var series_data = [];
+        $.each(times, function(i, t) {
+            series_data.push([t[0] * 1000.0, t[1]/3600.0]);
+        });
+        series.push({label: builder, data: series_data});
+    });
+    $.plot("#time", series, g_options);
+}
+
+$(function() {
+    $.getJSON("build_times.json", function(data) {
+        g_data = data;
+        plot();
+    });
+    $("#filter").bind("keyup", plot);
+});
+</script>
+</head>
+<body>
+    <p id="header" />
+    <p>
+    Filter: <input id="filter" />
+    </p>
+    <div id="time" style="width:800px;height:400px" ></div>
+    <div id="legend" style="width:800px;height:400px" ></div>
+</body>
+</html>

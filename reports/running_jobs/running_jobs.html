@@ -1,0 +1,49 @@
+<html>
+<head>
+<!--[if lte IE 8]><script language="javascript" type="text/javascript" src="flot/excanvas.min.js"></script><![endif]-->
+<script language="javascript" type="text/javascript" src="flot/jquery.js"></script>
+<script language="javascript" type="text/javascript" src="flot/jquery.flot.js"></script>
+<script language="javascript" type="text/javascript" src="flot/jquery.flot.time.js"></script>
+<script type="text/javascript">
+var options = {
+    series: {
+        lines: {show:true},
+        points: {show:true},
+    },
+    xaxis: {
+        mode: "time",
+    },
+    grid: {
+        clickable: true,
+    },
+};
+
+function ts2date(ts) {
+    return new Date(ts * 1000);
+}
+
+$(function() {
+    $.getJSON("running_jobs.js", function(data) {
+        $("#header").text("For builds starting from " + ts2date(data.data_start) + " to " + ts2date(data.data_end));
+        $("#footer").text("generated on " + ts2date(data.report_start));
+        var series = [
+            {label: "Number of jobs running", data: []},
+        ];
+        // We need to multply times by 1000
+        for (i=0; i < data.data.length; ++i) {
+            var d = data.data[i][0] * 1000;
+            var c = data.data[i][1];
+            series[0].data.push([d, c]);
+        }
+        var plot = $.plot("#job_count", series, options);
+    });
+});
+</script>
+</head>
+<body>
+    <h1>Number of jobs running on RelEng infra</h1>
+    <p id="header" />
+    <div id="job_count" style="width:1600px; height:800px" ></div>
+    <p id="footer" />
+</body>
+</html>

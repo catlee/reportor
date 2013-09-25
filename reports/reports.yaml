@@ -83,3 +83,21 @@ retries:
     copy_files:
         - flot/
         - retries.html
+
+build_times:
+    when: daily
+    command: python build_times.py
+    stdout: build_times.json
+    locks: [status_db]
+    copy_files:
+        - flot/
+        - build_times.html
+
+running_jobs:
+    when: hourly
+    command: python running_jobs.py
+    stdout: running_jobs.js
+    locks: [scheduler_db]
+    copy_files:
+        - flot/
+        - running_jobs.html

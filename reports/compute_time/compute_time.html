@@ -23,11 +23,11 @@ function ts2date(ts) {
 }
 
 $(function() {
-    $.getJSON("running_jobs.js", function(data) {
+    $.getJSON("compute_time.js", function(data) {
         $("#header").text("For builds starting from " + ts2date(data.data_start) + " to " + ts2date(data.data_end));
         $("#footer").text("generated on " + ts2date(data.report_start));
         var series = [
-            {label: "Number of jobs running", data: []},
+            {label: "Number of compute hours", data: []},
         ];
         // We need to multply times by 1000
         for (i=0; i < data.data.length; ++i) {
@@ -41,7 +41,7 @@ $(function() {
 </script>
 </head>
 <body>
-    <h1>Number of jobs running per hour for the past 7 days on RelEng infra</h1>
+    <h1>Number of compute hours per hour for the past 7 days on RelEng infra</h1>
     <p id="header" />
     <div id="job_count" style="width:1600px; height:800px" ></div>
     <p id="footer" />

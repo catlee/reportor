@@ -101,3 +101,12 @@ running_jobs:
     copy_files:
         - flot/
         - running_jobs.html
+
+compute_time:
+    when: hourly
+    command: python compute_time.py
+    stdout: compute_time.js
+    locks: [scheduler_db]
+    copy_files:
+        - flot/
+        - compute_time.html

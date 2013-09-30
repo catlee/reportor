@@ -31,7 +31,9 @@ def get_job_info(branch, revision):
 
     t = 0
     n = 0
-    if not r.json():
+    try:
+        r.json()
+    except Exception:
         raise ValueError("Couldn't load json from %s - %s" % (baseurl, r.content))
 
     if "status" in r.json() and r.json()['status'] == 'FAILED':

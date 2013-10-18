@@ -25,6 +25,7 @@ def get_job_info(branch, revision):
             r = requests.get(baseurl, params={'format': 'json'})
             break
         except:
+            time.sleep(5)
             continue
     else:
         raise ValueError("Couldn't load data from %s" % baseurl)

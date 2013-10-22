@@ -23,8 +23,9 @@ def get_job_info(branch, revision):
     for i in range(10):
         try:
             r = requests.get(baseurl, params={'format': 'json'})
+            r.json()
             break
-        except:
+        except Exception:
             time.sleep(5)
             continue
     else:
@@ -32,10 +33,6 @@ def get_job_info(branch, revision):
 
     t = 0
     n = 0
-    try:
-        r.json()
-    except Exception:
-        raise ValueError("Couldn't load json from %s - %s" % (baseurl, r.content))
 
     if "status" in r.json() and r.json()['status'] == 'FAILED':
         return 0, 0

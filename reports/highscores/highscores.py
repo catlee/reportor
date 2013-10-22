@@ -4,6 +4,7 @@ import datetime
 import json
 import time
 import logging
+import re
 
 # Get the pushlog for hte
 def get_pushes(branch, startdate, enddate, full=False):
@@ -60,7 +61,8 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(message)s")
 
     logging.debug("loading pushes...")
-    pushes = get_pushes("try", lastweek, today)
+    # Use full=True to get changeset descriptions and files
+    pushes = get_pushes("try", lastweek, today, full=True)
 
     users = set(p['user'] for p in pushes)
     results = {'fromdate': lastweek, 'todate': today, 'scores': [], 'generated': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
@@ -73,11 +75,16 @@ if __name__ == '__main__':
         total_jobs = 0
         revisions = []
         for p in user_pushes:
-            logging.debug("getting times for %s %s", u, p['changesets'][-1][:12])
+            logging.debug("getting times for %s %s", u, p['changesets'][-1]['node'][:12])
             # Figure out how much time we spent on this push
             try:
-                try_time, num_jobs = get_job_info("try", p['changesets'][-1][:12])
-                revisions.append( {"hours": try_time/3600.0, "revision": p['changesets'][-1][:12], "jobs": num_jobs} )
+                try_time, num_jobs = get_job_info("try", p['changesets'][-1]['node'][:12])
+                try_match = re.search("try:.*$", p['changesets'][-1]['desc'])
+                if try_match:
+                    try_syntax = try_match.group(0)
+                else:
+                    try_syntax = ""
+                revisions.append( {"hours": try_time/3600.0, "revision": p['changesets'][-1]['node'][:12], "jobs": num_jobs, "try_syntax": try_syntax} )
                 total_try_time += try_time
                 total_jobs += num_jobs
             except:

@@ -47,6 +47,13 @@ td {
     text-decoration: blink;
 }
 
+.try_syntax {
+    font-size: 75%;
+    color: yellow;
+    text-align: right;
+    padding-top: 10px;
+}
+
 .hours {
     text-align: right;
 }

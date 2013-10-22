@@ -67,8 +67,11 @@
                     var rev = push.revision;
                     var hours = numberWithCommas(Math.round(push.hours));
                     var jobs = numberWithCommas(Math.round(push.jobs));
+                    var try_syntax = push.try_syntax;
                     row = "<tr>";
-                    row += "<td class=\"push\"><a href=\"http://tbpl.mozilla.org/?tree=Try&rev="+rev+"\">" + rev + "</a></td>";
+                    row += "<td><div class=\"push\"><a href=\"http://tbpl.mozilla.org/?tree=Try&rev="+rev+"\">" +
+                           rev + "</a></div>" +
+                           "<div class=\"try_syntax\">" + try_syntax + "</div></td>";
                     row += "<td class=\"hours\">" + hours + "</td>";
                     row += "<td class=\"jobs\">" + jobs + "</td>";
                     row += "</tr>";

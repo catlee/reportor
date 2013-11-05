@@ -6,9 +6,9 @@ import json
 import time
 import logging
 import sqlalchemy as sa
-from reportor.utils import td2s, dt2ts
 
-# Get the pushlog for hte
+
+# Get the pushlog for the branch
 def get_pushes(branch, startdate, enddate, full=False):
     baseurl = "http://hg.mozilla.org/{branch}/json-pushes".format(branch=branch)
     params = {"startdate": startdate, "enddate": enddate}
@@ -21,12 +21,17 @@ def get_pushes(branch, startdate, enddate, full=False):
 
 
 def get_job_info(db, branch, revision):
-    q = sa.text("""SELECT buildrequests.submitted_at, buildrequests.complete_at, buildsets.reason FROM buildrequests, buildsets, sourcestamps WHERE
+    q = sa.text("""
+        SELECT
+            buildrequests.submitted_at, buildrequests.complete_at,
+            buildsets.reason
+        FROM buildrequests, buildsets, sourcestamps WHERE
         buildrequests.buildsetid = buildsets.id AND
         buildsets.sourcestampid = sourcestamps.id AND
         sourcestamps.branch LIKE :branch AND
         sourcestamps.revision LIKE :revision""")
-    builds = db.execute(q, branch='%{0}%'.format(branch), revision='{0}%'.format(revision))
+    builds = db.execute(q, branch='%{0}%'.format(branch),
+                        revision='{0}%'.format(revision))
     return list(builds)
 
 
@@ -39,7 +44,8 @@ if __name__ == '__main__':
     today = datetime.date.today()
     start_time = start_time.strftime("%Y-%m-%d")
     today = today.strftime("%Y-%m-%d")
-    logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(message)s")
+    logging.basicConfig(level=logging.DEBUG,
+                        format="%(asctime)s - %(message)s")
 
     import reportor.db
     db = reportor.db.db_from_config('scheduler_db')
@@ -61,22 +67,25 @@ if __name__ == '__main__':
         start = p['date']
 
         # Filter out jobs that were submitted more than 24 hours after the push
-        auto_jobs = [j for j in auto_jobs if j.submitted_at < start+86400]
+        auto_jobs = [j for j in auto_jobs if j.submitted_at < start + 86400]
 
         if not auto_jobs:
             # They all got coalesced away?
             continue
 
         end = max(j.complete_at for j in auto_jobs)
+        if end < start:
+            # Aaah, weirdness!
+            continue
         results.append((rev, start, end))
 
     e = time.time()
     report = {
-            "branch": options.branch,
-            "data": results,
-            "report_start": s,
-            "report_elapsed": e-s,
-            "data_start": start_time,
-            "data_end": today,
-            }
+        "branch": options.branch,
+        "data": results,
+        "report_start": s,
+        "report_elapsed": e - s,
+        "data_start": start_time,
+        "data_end": today,
+    }
     print json.dumps(report)

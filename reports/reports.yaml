@@ -115,3 +115,5 @@ build_steps:
     when: daily
     command: python build_steps.py
     locks: [status_db]
+    copy_files:
+        - steps.csv.gz

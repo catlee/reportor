@@ -110,3 +110,8 @@ compute_time:
     copy_files:
         - flot/
         - compute_time.html
+
+build_steps:
+    when: daily
+    command: python build_steps.py
+    locks: [status_db]

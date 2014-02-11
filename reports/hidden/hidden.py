@@ -20,7 +20,7 @@ def get_branch(build):
 
     global _branch_cache
     if _branch_cache is None:
-        url = "http://hg.mozilla.org/build/tools/raw-file/5aaa1bc1053e/buildfarm/maintenance/production-branches.json"
+        url = "http://hg.mozilla.org/build/tools/raw-file/default/buildfarm/maintenance/production-branches.json"
         log.info("Downloading %s", url)
         _branch_cache = requests.get(url).json()
 

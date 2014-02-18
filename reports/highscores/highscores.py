@@ -19,8 +19,7 @@ def get_pushes(branch, startdate, enddate, full=False):
 
 
 def get_job_info(branch, revision):
-    #baseurl = "https://hg.mozilla.org/{branch}/json-pushes".format(branch=branch)
-    baseurl = "http://buildapi01.build.scl1.mozilla.com/buildapi/self-serve/{branch}/rev/{revision}".format(branch=branch, revision=revision)
+    baseurl = "http://buildapi.pvt.build.mozilla.org/buildapi/self-serve/{branch}/rev/{revision}".format(branch=branch, revision=revision)
     for i in range(10):
         try:
             r = requests.get(baseurl, params={'format': 'json'})

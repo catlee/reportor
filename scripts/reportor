@@ -55,7 +55,7 @@ def main():
     try:
         lock = lockfile.FileLock(options.manifest)
         log.debug("acquiring lock")
-        lock.acquire(timeout=60)
+        lock.acquire(timeout=600)
     except lockfile.LockTimeout:
         log.warn("Couldn't acquire lock")
         raise SystemExit(-1)
@@ -74,7 +74,7 @@ def main():
         run_manifest(m, output_dir, now)
 
         if rel_symlink:
-            # Add a symlink from 
+            # Add a symlink to the dated directory
             log.debug("%s -> %s", abs_symlink, rel_symlink)
             try:
                 if os.path.exists(abs_symlink):

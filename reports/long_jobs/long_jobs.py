@@ -26,10 +26,13 @@ def getMaster(db_name):
 def add_master_links(running):
     for build in running:
         m = getMaster(build['claimed_by_name'])
-        d = m.copy()
-        d.update(build)
-        link = "http://{hostname}:{http_port}/builders/{buildername}/builds/{number}".format(**d)
-        build['master_link'] = link
+        if m:
+            d = m.copy()
+            d.update(build)
+            link = "http://{hostname}:{http_port}/builders/{buildername}/builds/{number}".format(**d)
+            build['master_link'] = link
+        else:
+            build['master_link'] = ''
 
 def find_long_running(db, starttime):
     q = sa.text("""

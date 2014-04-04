@@ -117,3 +117,8 @@ build_steps:
     locks: [status_db]
     copy_files:
         - steps.csv.gz
+
+machine_sanity:
+    when: daily
+    command: python machine_sanity.py
+    stdout: machine_sanity.txt

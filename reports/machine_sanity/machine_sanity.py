@@ -2,7 +2,7 @@
 
 from collections import defaultdict
 import logging
-from os import path
+from os import devnull, path
 import shutil
 from subprocess import check_call
 import sys
@@ -54,8 +54,6 @@ INHOUSE_NETWORKS = [
     "winbuild.releng.scl3.mozilla.com",
     "wintest.releng.scl3.mozilla.com",
     "wintry.releng.scl3.mozilla.com",
-    "build.servo.releng.scl3.mozilla.com",
-    "srv.servo.releng.scl3.mozilla.com",
     "p1.releng.scl1.mozilla.com",
     "p2.releng.scl1.mozilla.com",
     "p3.releng.scl1.mozilla.com",
@@ -72,8 +70,11 @@ INHOUSE_NETWORKS = [
 SKIP_PATTERNS = ["puppet", "pdu", "install", "ref", "admin", "casper",
                  "partner", "foopy", "slaveapi", "webhost", "buildlb",
                  "packager", "jenkins", "nagios", "relay", "imaging",
-                 "dev-stage", "signing", "cruncher", "bm-remote", "pxe",
-                 "-mini-", "seamicro-test"]
+                 "dev", "signing", "cruncher", "bm-remote", "pxe",
+                 "-mini-", "seamicro-test", "aws-manager",
+                 # buildbot-master81 is special because it's a scheduler
+                 # master only, and thus not in slavealloc
+                 "buildbot-master81"]
 
 REQUIRED_DNS_RECORDS = ["A", "PTR", "CNAME"]
 
@@ -136,7 +137,9 @@ def get_buildbot_machines(buildbot_configs):
     workdir = mkdtemp()
     bbdir = path.join(workdir, "buildbot-configs")
     try:
-        check_call(["hg", "clone", buildbot_configs, bbdir])
+        with open(devnull, 'w') as null:
+            check_call(["hg", "clone", buildbot_configs, bbdir], stdout=null)
+
         for dir_ in ("mozilla", "mozilla-tests"):
             # We're looking for all slaves, and staging configs have both
             # the production and staging slaves defined, so sourcing from

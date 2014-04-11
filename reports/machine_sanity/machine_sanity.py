@@ -36,8 +36,7 @@ def get_all_instances(conn):
 # End of cloudtools imports
 
 INSTANCE_TYPES_WE_CARE_ABOUT = ('bld-linux64', 'try-linux64', 'tst-linux32',
-                                'tst-linux64', 'tst-win64', 'servo-linux64',
-                                'buildbot-master')
+                                'tst-linux64', 'tst-win64', 'buildbot-master')
 
 
 log = logging.getLogger(__name__)

@@ -252,6 +252,9 @@ def verify_machine(name, machine_fqdn, machine_ip, inventory):
     # * search for inventory, complain if len(results) != 1
     # * look at dns
 
+    if matches_skip_pattern(name):
+        return
+
     # If a machine is a master or slave, we need should check to make sure
     # it's listed in slavealloc.
     if name not in slavealloc_machines:

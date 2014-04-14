@@ -120,12 +120,14 @@ def get_slavealloc_machines(slavealloc):
     url = furl(slavealloc)
     url.path.add("slaves")
     for slave in requests.get(str(url)).json():
-        machines[slave["name"]] = slave
+        if not matches_skip_pattern(name):
+            machines[slave["name"]] = slave
 
     url = furl(slavealloc)
     url.path.add("masters")
     for master in requests.get(str(url)).json():
-        machines[master["fqdn"].split(".")[0]] = master
+        if not matches_skip_pattern(name):
+            machines[master["fqdn"].split(".")[0]] = master
 
     log.info("Done getting slavealloc machines")
     return machines
@@ -161,9 +163,13 @@ def get_buildbot_machines(buildbot_configs):
             for _, slaves in config.SLAVES.iteritems():
                 # Slave lists can be lists, or dicts. We need to handle both.
                 if hasattr(slaves, "keys"):
-                    machines.update(slaves.keys())
+                    for s in slaves.keys():
+                        if not matches_skip_pattern(s)
+                            machines.update(s)
                 else:
-                    machines.update(slaves)
+                    for s in slaves:
+                        if not matches_skip_pattern(s):
+                            machines.update(s)
             sys.path.remove(workdir)
         return machines
     finally:

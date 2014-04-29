@@ -122,3 +122,5 @@ machine_sanity:
     when: daily
     command: python machine_sanity.py
     stdout: machine_sanity.txt
+    copy_files:
+        - usable_slaves.json

@@ -1,6 +1,7 @@
 #!/usr/bin/env python2
 
 from collections import defaultdict
+import json
 import logging
 from os import devnull, path
 import shutil
@@ -73,7 +74,7 @@ SKIP_PATTERNS = ["puppet", "pdu", "install", "ref", "admin", "casper",
                  "-mini-", "seamicro-test", "aws-manager",
                  # buildbot-master81 is special because it's a scheduler
                  # master only, and thus not in slavealloc
-                 "buildbot-master81"]
+                 "buildbot-master81", "servo"]
 
 REQUIRED_DNS_RECORDS = ["A", "PTR", "CNAME"]
 
@@ -120,13 +121,13 @@ def get_slavealloc_machines(slavealloc):
     url = furl(slavealloc)
     url.path.add("slaves")
     for slave in requests.get(str(url)).json():
-        if not matches_skip_pattern(name):
+        if not matches_skip_pattern(slave["name"]):
             machines[slave["name"]] = slave
 
     url = furl(slavealloc)
     url.path.add("masters")
     for master in requests.get(str(url)).json():
-        if not matches_skip_pattern(name):
+        if not matches_skip_pattern(master["fqdn"]):
             machines[master["fqdn"].split(".")[0]] = master
 
     log.info("Done getting slavealloc machines")
@@ -164,12 +165,12 @@ def get_buildbot_machines(buildbot_configs):
                 # Slave lists can be lists, or dicts. We need to handle both.
                 if hasattr(slaves, "keys"):
                     for s in slaves.keys():
-                        if not matches_skip_pattern(s)
-                            machines.update(s)
+                        if not matches_skip_pattern(s):
+                            machines.add(s)
                 else:
                     for s in slaves:
                         if not matches_skip_pattern(s):
-                            machines.update(s)
+                            machines.add(s)
             sys.path.remove(workdir)
         return machines
     finally:
@@ -261,6 +262,8 @@ def verify_machine(name, machine_fqdn, machine_ip, inventory):
     if matches_skip_pattern(name):
         return
 
+    existent_machines.add(name)
+
     # If a machine is a master or slave, we need should check to make sure
     # it's listed in slavealloc.
     if name not in slavealloc_machines:
@@ -335,19 +338,16 @@ if __name__ == "__main__":
     missing_from_buildbot = set()
     incorrect_dns = defaultdict(list)
     cant_verify = list()
-    aws_machines = set()
-    inhouse_machines = set()
+    existent_machines = set()
 
     for name, details in get_all_aws_instances():
         try:
-            aws_machines.add(name)
             verify_machine(name, details.tags["FQDN"], details.private_ip_address, inventory)
         except:
             log.error("Error verifying %s", name, exc_info=True)
 
     for name, details in get_all_inhouse_machines(inventory):
         try:
-            inhouse_machines.add(name)
             if not details.get("staticreg_set", {}).get("nic0", {}).get("ip_str"):
                 cant_verify.append("%s is missing IP information" % name)
                 continue
@@ -372,14 +372,14 @@ if __name__ == "__main__":
     print "Machines in Slavealloc but not in AWS or inventory:"
     print "***************************************************"
     for m in sorted(slavealloc_machines):
-        if m not in aws_machines and m not in inhouse_machines:
+        if m not in existent_machines:
             print "%s" % m
     print "\n"
 
     print "Machines in Buildbot configs but not in AWS or inventory:"
     print "*********************************************************"
     for m in sorted(buildbot_machines):
-        if m not in aws_machines and m not in inhouse_machines:
+        if m not in existent_machines:
             print "%s" % m
     print "\n"
 
@@ -389,3 +389,16 @@ if __name__ == "__main__":
         for err in incorrect_dns[type_]:
             print "%s" % err
         print "\n"
+
+    usable_slaves = existent_machines.copy()
+    usable_slaves = usable_slaves - missing_from_slavealloc - missing_from_buildbot
+    for m in incorrect_dns.keys() + cant_verify:
+        usable_slaves.discard(m)
+    for m in usable_slaves.copy():
+        if "master" in m:
+            usable_slaves.discard(m)
+        if m in incorrect_dns or m in cant_verify:
+            usable_slaves.discard(m)
+
+    with open("usable_slaves.json", "w") as f:
+        json.dump(sorted(usable_slaves), f)

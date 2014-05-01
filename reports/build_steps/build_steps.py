@@ -26,8 +26,8 @@ def get_steps(db, starttime, endtime):
             steps.build_id = builds.id AND
             builds.builder_id = builders.id AND
             builds.slave_id = slaves.id AND
-            builds.starttime > :starttime AND
-            builds.starttime <= :endtime
+            builds.endtime > :starttime AND
+            builds.endtime <= :endtime
         ORDER BY
             builds.id ASC,
             steps.order ASC

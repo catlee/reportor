@@ -166,11 +166,11 @@ def get_buildbot_machines(buildbot_configs):
 
 
 def filter_aws_slaves(slavealloc_machines, regions=DEFAULT_REGIONS):
-    for e in slavealloc_machines:
-        if not "slaveid" in e:
+    for name, info in slavealloc_machines.iteritems():
+        if not "slaveid" in info:
             continue
-        if e.get("datacenter") in regions:
-            yield e["name"]
+        if info.get("datacenter") in regions:
+            yield name
 
 
 def get_all_inhouse_machines(inventory):

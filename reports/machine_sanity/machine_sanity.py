@@ -1,4 +1,5 @@
 #!/usr/bin/env python2
+# lint_ignore=E501,C901
 
 from collections import defaultdict
 import json
@@ -9,7 +10,6 @@ from subprocess import check_call
 import sys
 from tempfile import mkdtemp
 
-from boto.ec2 import connect_to_region
 from furl import furl
 import requests
 
@@ -17,22 +17,6 @@ import requests
 # If the full couldtools library didn't depend on so many things we don't need
 # we'd just install it instead.
 DEFAULT_REGIONS = ['us-east-1', 'us-west-2']
-
-def get_aws_connection(region):
-    """Connect to an EC2 region. Caches connection objects"""
-    return connect_to_region(region)
-
-def is_beanstalk_instance(i):
-    return i.tags.get("elasticbeanstalk:environment-name") is not None
-
-
-def get_all_instances(conn):
-    res = conn.get_all_instances()
-    instances = []
-    if res:
-        instances = reduce(lambda a, b: a + b, [r.instances for r in res])
-    # Skip instances managed by Elastic Beanstalk
-    return [i for i in instances if not is_beanstalk_instance(i)]
 
 # End of cloudtools imports
 
@@ -81,11 +65,13 @@ REQUIRED_DNS_RECORDS = ["A", "PTR", "CNAME"]
 # Magic number in inventory's system_status field that means "decommissioned"
 DECOMM_STATUS = 6
 
+
 def matches_skip_pattern(name):
     for pat in SKIP_PATTERNS:
         if pat in name:
             return True
     return False
+
 
 def should_skip(name, i):
     if matches_skip_pattern(name):
@@ -115,6 +101,7 @@ def ptr2ip(ptr):
     ip.reverse()
     return ".".join(ip)
 
+
 def get_slavealloc_machines(slavealloc):
     log.info("Getting slavealloc machines")
     machines = {}
@@ -132,6 +119,7 @@ def get_slavealloc_machines(slavealloc):
 
     log.info("Done getting slavealloc machines")
     return machines
+
 
 def get_buildbot_machines(buildbot_configs):
     log.info("Getting buildbot machines")
@@ -176,38 +164,13 @@ def get_buildbot_machines(buildbot_configs):
     finally:
         shutil.rmtree(workdir)
 
-def get_all_aws_instances(regions=DEFAULT_REGIONS):
-    for region in regions:
-        conn = get_aws_connection(region)
-        log.info("Getting AWS instances")
-        for i in get_all_instances(conn):
-            # get_all_instances only gives instances that exist right now.
-            # Spot instances won't exist until they're needed, so we can't
-            # look for them this way. They're handled in the subsequent loop.
-            if i.spot_instance_request_id:
-                continue
 
-            if "Name" in i.tags:
-                name = i.tags["Name"]
-            else:
-                name = i.id
-
-            if not should_skip(name, i):
-                yield name, i
-        log.info("Done getting AWS instances")
-
-        log.info("Getting AWS Spot instances")
-        for n in conn.get_all_network_interfaces():
-            # Non-spot network interfaces will be returned as well, we only
-            # want to look at spot though.
-            name = n.tags.get("Name")
-            if not name or "spot" not in name:
-                continue
-
-            if not should_skip(name, n):
-                yield name, n
-
-        log.info("Done getting AWS Spot instances")
+def filter_aws_slaves(slavealloc_machines, regions=DEFAULT_REGIONS):
+    for e in slavealloc_machines:
+        if not "slaveid" in e:
+            continue
+        if e.get("datacenter") in regions:
+            yield e["name"]
 
 
 def get_all_inhouse_machines(inventory):
@@ -217,7 +180,7 @@ def get_all_inhouse_machines(inventory):
     for n in INHOUSE_NETWORKS:
         url.args["q"] = "/\\.%s" % n
         resp = requests.get(str(url))
-        for name,info in resp.json()["systems"].iteritems():
+        for name, info in resp.json()["systems"].iteritems():
             name = name.split(".")[0]
             if info["system_status"] == DECOMM_STATUS:
                 log.info("Skipping %s because it has been decommissioned", name)
@@ -225,7 +188,7 @@ def get_all_inhouse_machines(inventory):
             if matches_skip_pattern(name):
                 log.info("Skipping %s because it matches a skip pattern", name)
                 continue
-            yield name,info
+            yield name, info
     log.info("Done getting inhouse machines")
 
 
@@ -251,6 +214,7 @@ def get_inventory_dns(machine, inventory):
             _, src, _, _, type_, target = line.split()
         results[type_].append((src, target))
     return results
+
 
 def verify_machine(name, machine_fqdn, machine_ip, inventory):
     log.info("Verifying %s", name)
@@ -340,11 +304,9 @@ if __name__ == "__main__":
     cant_verify = list()
     existent_machines = set()
 
-    for name, details in get_all_aws_instances():
-        try:
-            verify_machine(name, details.tags["FQDN"], details.private_ip_address, inventory)
-        except:
-            log.error("Error verifying %s", name, exc_info=True)
+    for name in filter_aws_slaves(slavealloc_machines):
+        # Do not verify AWS slaves since they don't use DNS anymore
+        existent_machines.add(name)
 
     for name, details in get_all_inhouse_machines(inventory):
         try:
@@ -354,7 +316,6 @@ if __name__ == "__main__":
             verify_machine(name, details["hostname"], details["staticreg_set"]["nic0"]["ip_str"], inventory)
         except:
             log.error("Error verifying %s", name, exc_info=True)
-
 
     # Write the report!
     print "Machines in AWS/Inventory but not in Slavealloc:"

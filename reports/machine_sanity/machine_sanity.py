@@ -58,7 +58,7 @@ SKIP_PATTERNS = ["puppet", "pdu", "install", "ref", "admin", "casper",
                  "-mini-", "seamicro-test", "aws-manager",
                  # buildbot-master81 is special because it's a scheduler
                  # master only, and thus not in slavealloc
-                 "buildbot-master81", "servo"]
+                 "buildbot-master81", "servo", "celery"]
 
 REQUIRED_DNS_RECORDS = ["A", "PTR", "CNAME"]
 

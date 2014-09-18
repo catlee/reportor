@@ -16,6 +16,7 @@ var options = {
     },
     grid: {
         clickable: true,
+        hoverable: true,
     },
 };
 
@@ -31,6 +32,13 @@ function numericSort(a, b) {
 }
 
 $(function() {
+    $("<div id='tooltip'></div>").css({
+        position: "absolute",
+        display: "none",
+        border: "1px solid #fdd",
+        padding: "2px",
+        "background-color": "#fee",
+        opacity: 0.80}).appendTo("body");
     $.getJSON("end2end.json", function(data) {
         $("#branch").text(data.branch);
         $("#header").text("for pushes from " + data.data_start + " to " + data.data_end);
@@ -46,12 +54,12 @@ $(function() {
         });
 
         var series = [
-            {label: "90th percentile (hours)", data: []},
-            {label: "95th percentile (hours)", data: []},
+            {label: "50th percentile (hours)", data: [], hoverable: true},
+            {label: "95th percentile (hours)", data: [], hoverable: true},
         ];
         $.each(data_by_date, function(d, times) {
             times.sort(numericSort)
-            var p0 = Math.floor(times.length * 0.90);
+            var p0 = Math.floor(times.length * 0.50);
             var p1 = Math.floor(times.length * 0.95);
             series[0].data.push([d, times[p0]]);
             series[1].data.push([d, times[p1]]);
@@ -60,8 +68,14 @@ $(function() {
         series[1].data.sort();
 
         var plot = $.plot("#end2end", series, options);
-        $("#end2end").bind("plotclick", function(event, pos, item) {
-            console.log(series[item.dataIndex][2]);
+        $("#end2end").bind("plothover", function(event, pos, item) {
+            if (item) {
+                var x = new Date(item.datapoint[0]).toDateString(),
+                    y = item.datapoint[1].toFixed(2);
+                $("#tooltip").html(item.series.label + " at " + x + " = " + y)
+                    .css({top: item.pageY+5, left: item.pageX+5})
+                    .fadeIn(200);
+            }
         });
     });
 });
@@ -70,7 +84,7 @@ $(function() {
 <body>
     <h1>end-to-end times for <span id="branch" /></h1>
     <p id="header" />
-    <div id="end2end" style="width:800px; height:600px" ></div>
+    <div id="end2end" style="width:1000px; height:800px" ></div>
     <p id="footer" />
 </body>
 </html>

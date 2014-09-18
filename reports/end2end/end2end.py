@@ -23,7 +23,9 @@ def get_pushes(branch, startdate, enddate, full=False):
 def get_job_info(db, branch, revision):
     q = sa.text("""
         SELECT
+            buildrequests.id,
             buildrequests.submitted_at, buildrequests.complete_at,
+            buildrequests.buildername,
             buildsets.reason
         FROM buildrequests, buildsets, sourcestamps WHERE
         buildrequests.buildsetid = buildsets.id AND
@@ -53,6 +55,7 @@ if __name__ == '__main__':
     s = time.time()
     options = parser.parse_args()
     logging.debug("loading pushes...")
+
     pushes = get_pushes(options.branch, start_time, today, full=True)
 
     results = []
@@ -77,6 +80,7 @@ if __name__ == '__main__':
         if end < start:
             # Aaah, weirdness!
             continue
+
         results.append((rev, start, end))
 
     e = time.time()

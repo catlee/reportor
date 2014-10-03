@@ -21,14 +21,20 @@ q = sa.text("""
             buildrequests.id = builds.brid AND
             buildrequests.buildername LIKE :buildername AND
             builds.start_time > :starttime AND
+            builds.start_time < :endtime AND
             builds.finish_time IS NOT NULL
         """)
 
-builds = scheduler_db.execute(q, buildername = '%mozilla-central%', starttime = time.time() - 21*86400)
+now = time.time()
+now = 1366862400  # Apr 25, 2013
+starttime = now - 21 * 816400
+endtime = now
+
+builds = scheduler_db.execute(q, buildername = '%mozilla-central%', starttime=starttime, endtime=endtime)
 
 print builds.rowcount, "builds"
 
-ignore = ["pgo", "nightly", "valgrind", "shark", "code coverage", "xulrunner", "hg bundle", "blocklist update", "l10n", "dxr"]
+ignore = ["pgo", "nightly", "valgrind", "shark", "code coverage", "xulrunner", "hg bundle", "blocklist update", "l10n", "dxr", "periodic"]
 
 builder_times = {}
 for build in builds:

@@ -39,6 +39,9 @@ def get_job_info(db, branch, revision):
 
 if __name__ == '__main__':
     import argparse
+    import reportor.db
+    import reportor.graphite
+
     parser = argparse.ArgumentParser()
     parser.add_argument("-b", "--branch", required=True, dest="branch")
 
@@ -49,8 +52,9 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG,
                         format="%(asctime)s - %(message)s")
 
-    import reportor.db
     db = reportor.db.db_from_config('scheduler_db')
+
+    graphite = reportor.graphite.graphite_from_config()
 
     s = time.time()
     options = parser.parse_args()
@@ -82,6 +86,8 @@ if __name__ == '__main__':
             continue
 
         results.append((rev, start, end))
+        if graphite:
+            graphite.submit('end2end.{0}'.format(options.branch), end-start, start)
 
     e = time.time()
     report = {

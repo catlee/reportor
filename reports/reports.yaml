@@ -124,3 +124,7 @@ machine_sanity:
     stdout: machine_sanity.txt
     copy_files:
         - usable_slaves.json
+
+tree_uptime:
+    when: daily
+    command: python tree_uptime.py -t mozilla-inbound

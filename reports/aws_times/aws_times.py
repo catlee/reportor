@@ -27,7 +27,7 @@ def get_builds(db, start, end):
     return db.execute(q, start=datetime.utcfromtimestamp(start), end=datetime.utcfromtimestamp(end))
 
 def is_ec2(build):
-    return "-ec2" in build.slave_name
+    return ("-ec2" in build.slave_name) or ("-spot" in build.slave_name)
 
 
 def td2s(td):

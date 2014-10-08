@@ -16,6 +16,9 @@ class GraphiteSubmitter(object):
 
     def submit(self, name, value, timestamp=None):
         line = "%s.%s %s" % (self.prefix, name, value)
+        if not timestamp:
+            timestamp = int(time.time())
+
         if timestamp:
             line += " %i" % timestamp
 
@@ -37,5 +40,5 @@ def graphite_from_config():
     )
     # Make sure we sleep to let metrics get through. cf.
     # https://bugzilla.mozilla.org/show_bug.cgi?id=1025145
-    time.sleep(1)
+    #time.sleep(1)
     return g

@@ -8,6 +8,9 @@ setup(name='reportor',
       author='Chris AtLee',
       author_email='catlee@mozilla.com',
       packages=['reportor'],
-      install_requires=['pyyaml', 'argparse', 'lockfile', 'boto', 'furl', 'requests', 'pyOpenSSL', 'ndg-httpsclient', 'pyasn1'],
+      install_requires=[
+          'pyyaml', 'argparse', 'lockfile', 'boto', 'furl', 'requests',
+          'pyOpenSSL', 'ndg-httpsclient', 'pyasn1', 'beautifulsoup4'
+      ],
       scripts=['scripts/reportor'],
       )

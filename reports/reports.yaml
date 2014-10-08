@@ -128,3 +128,7 @@ machine_sanity:
 tree_uptime:
     when: daily
     command: python tree_uptime.py -t mozilla-inbound
+
+bugzilla_reports:
+    when: hourly
+    command: python bugzilla_reports.py

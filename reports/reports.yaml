@@ -129,6 +129,11 @@ tree_uptime:
     when: daily
     command: python tree_uptime.py -t mozilla-inbound
 
+tree_uptime_try:
+    when: daily
+    cwd: tree_uptime
+    command: python tree_uptime.py -t try
+
 bugzilla_reports:
     when: hourly
     command: python bugzilla_reports.py

@@ -1,12 +1,14 @@
 #!/usr/bin/env python
 from datetime import datetime, timedelta
 import requests
-import json
+from reportor.utils import dt2ts, td2s
 
 TREESTATUS_URL = "https://treestatus.mozilla.org/{tree}/logs"
 
+
 def load_treestatus(tree, all=False):
-    r = requests.get(TREESTATUS_URL.format(tree=tree), params={'all': '1'}).json()
+    params = {'all': '1'}
+    r = requests.get(TREESTATUS_URL.format(tree=tree), params=params).json()
     return r
 
 
@@ -31,6 +33,7 @@ def crystalball(events):
             last = e.copy()
             continue
         last['elapsed'] = parse_time(e['when']) - parse_time(last['when'])
+        assert td2s(last['elapsed']) >= 0
         yield last
         last = e.copy()
 
@@ -62,9 +65,7 @@ def main():
     import argparse
     from collections import defaultdict
 
-    import reportor.config
     import reportor.graphite
-    from reportor.utils import dt2ts, td2s
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-t", "--tree", dest="tree", required=True, help="which tree to fetch")
@@ -79,7 +80,7 @@ def main():
 
     # Add an event for "now"
     now = events[-1].copy()
-    now['when'] = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+    now['when'] = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
     events.append(now)
 
     # Add up total times per day
@@ -100,18 +101,18 @@ def main():
 
         for n in names:
             times_per_day[t.date()][n] += td2s(elapsed)
+            assert times_per_day[t.date()][n] >= 0
 
     for day in sorted(times_per_day.keys()):
         for state, time in sorted(times_per_day[day].iteritems()):
+            day = datetime(day.year, day.month, day.day)
             print day, state, time
             if graphite:
-                day = datetime(day.year, day.month, day.day)
                 graphite.submit(
                     "uptime.{0}.{1}".format(args.tree, state),
                     time,
                     dt2ts(day),
-                    )
-
+                )
 
 
 if __name__ == '__main__':

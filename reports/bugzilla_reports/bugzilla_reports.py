@@ -54,7 +54,7 @@ def get_activity(username):
 
 
 def main():
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
     import reportor.graphite
     g = reportor.graphite.graphite_from_config()
     if g:
@@ -86,6 +86,7 @@ def main():
         n = get_activity(u)
         #shortname = u.split("@")[0]
         u = u.replace(".", "-")
+        u = u.replace("@", "-")
         print u, n
         if g:
             g.submit("bugs.active.%s" % u, n, now)

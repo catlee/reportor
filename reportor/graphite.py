@@ -17,6 +17,9 @@ class GraphiteSubmitter(object):
             s = socket.create_connection((host, port))
             self._socks.append((s, prefix))
 
+    def __str__(self):
+        return "GraphiteSubmitter: %s" % str( [(host, port) for (host, port, _) in self.hosts] )
+
     def submit(self, name, value, timestamp=None):
         if not timestamp:
             timestamp = int(time.time())
@@ -46,5 +49,5 @@ def graphite_from_config():
     g = GraphiteSubmitter(hosts)
     # Make sure we sleep to let metrics get through. cf.
     # https://bugzilla.mozilla.org/show_bug.cgi?id=1025145
-    #time.sleep(1)
+    time.sleep(1)
     return g

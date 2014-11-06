@@ -70,8 +70,6 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-t", "--tree", dest="tree", required=True, help="which tree to fetch")
 
-    graphite = reportor.graphite.graphite_from_config()
-
     args = parser.parse_args()
 
     events = load_treestatus(args.tree)
@@ -102,6 +100,8 @@ def main():
         for n in names:
             times_per_day[t.date()][n] += td2s(elapsed)
             assert times_per_day[t.date()][n] >= 0
+
+    graphite = reportor.graphite.graphite_from_config()
 
     for day in sorted(times_per_day.keys()):
         for state, time in sorted(times_per_day[day].iteritems()):

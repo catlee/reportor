@@ -8,36 +8,42 @@ log = logging.getLogger(__name__)
 
 
 class GraphiteSubmitter(object):
-    def __init__(self, host, port, prefix):
-        self.host = host
-        self.port = port
-        self.prefix = prefix
-        self._sock = socket.create_connection((host, port))
+    def __init__(self, hosts):
+        """hosts is a list of (hostname, port, prefix) tuples"""
+        self.hosts = hosts
+
+        self._socks = []
+        for host, port, prefix in hosts:
+            s = socket.create_connection((host, port))
+            self._socks.append((s, prefix))
 
     def submit(self, name, value, timestamp=None):
-        line = "%s.%s %s" % (self.prefix, name, value)
         if not timestamp:
             timestamp = int(time.time())
 
-        if timestamp:
-            line += " %i" % timestamp
-
-        log.debug(str(line))
-        self._sock.sendall(line + "\n")
+        for s, prefix in self._socks:
+            line = "%s.%s %s %i\n" % (prefix, name, value, timestamp)
+            s.sendall(line)
 
     def wait(self):
-        self._sock.close()
+        for s, _ in self._socks:
+            s.close()
 
 
 def graphite_from_config():
     config = reportor.config.load_config()
     if not config.has_section('graphite'):
         return None
-    g = GraphiteSubmitter(
-        host=config.get('graphite', 'hostname'),
-        port=config.getint('graphite', 'port'),
-        prefix=config.get('graphite', 'prefix'),
-    )
+
+    # hosts = graphite.mozilla.org:2003:test.catlee.reportor, foo.place.com:2003:prefix
+    hosts = []
+    for hoststr in config.get('graphite', 'hosts').split(','):
+        hoststr = hoststr.strip()
+        host, port, prefix = hoststr.split(":")
+        port = int(port)
+        hosts.append((host, port, prefix))
+
+    g = GraphiteSubmitter(hosts)
     # Make sure we sleep to let metrics get through. cf.
     # https://bugzilla.mozilla.org/show_bug.cgi?id=1025145
     #time.sleep(1)

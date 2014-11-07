@@ -87,7 +87,7 @@ if __name__ == '__main__':
 
         results.append((rev, start, end))
         if graphite:
-            graphite.submit('end2end.{0}'.format(options.branch), end-start, start)
+            graphite.submit('end2end.{0}'.format(options.branch.split("/")[-1]), end-start, start)
 
     e = time.time()
     report = {

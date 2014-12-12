@@ -2,118 +2,105 @@
 from datetime import datetime, timedelta
 import requests
 from reportor.utils import dt2ts, td2s
+from collections import defaultdict
 
 TREESTATUS_URL = "https://treestatus.mozilla.org/{tree}/logs"
 
+TIME_FORMAT = "%Y-%m-%dT%H:%M:%S"
+
 
 def load_treestatus(tree, all=False):
-    params = {'all': '1'}
+    params = {}
+    if all:
+        params['all'] = '1'
     r = requests.get(TREESTATUS_URL.format(tree=tree), params=params).json()
     return r
 
 
 def parse_time(t):
-    return datetime.strptime(t, "%Y-%m-%dT%H:%M:%S")
+    return datetime.strptime(t, TIME_FORMAT)
 
 
-def crystalball(events):
-    """
-    Normally to determine event duration you need to keep track of the previous
-    event and compare it to the current event.
-
-    crystalball takes an iterable of events and yields the same events, each
-    with an added 'elapsed' field which represents how long the event lasted.
-
-    This will yield 1 fewer events than exists in the orignal data, since we
-    don't know the duration of the final event.
-    """
+def get_stats(events, start, end):
     last = None
-    for e in events:
-        if last is None:
-            last = e.copy()
+    # Figure out the stats for the previous 24 hours
+    stats = defaultdict(float)
+    for event in events:
+        e_time = parse_time(event['when'])
+        # This is before our window started, continue along, but reset the time
+        # of the event to the start of the window so we can get use it to
+        # calculate our duration later
+        if e_time < start:
+            last = event.copy()
+            last['when'] = start.strftime(TIME_FORMAT)
             continue
-        last['elapsed'] = parse_time(e['when']) - parse_time(last['when'])
-        assert td2s(last['elapsed']) >= 0
-        yield last
-        last = e.copy()
 
+        done = False
+        if e_time > end:
+            # Cap this event to the end of our range, and then exit
+            e_time = end
+            done = True
 
-def daybreak(events):
-    """
-    Takes a list of events and splits up any that cross day boundaries.
-    """
-    oneday = timedelta(days=1)
-    last = None
-    for e in events:
-        if last:
-            last_t = parse_time(last['when'])
-            t = parse_time(e['when'])
+        last_state = last['action']
+        elapsed = td2s(e_time - parse_time(last['when']))
+        assert elapsed >= 0
+        stats[last_state] += elapsed
+        last = event
+        if done:
+            break
 
-            d = last_t
-            while d.date() != t.date():
-                next_d = (d + oneday).replace(hour=0, minute=0, second=0)
-                next_e = last.copy()
-                next_e['when'] = next_d.strftime("%Y-%m-%dT%H:%M:%S")
-                yield next_e
-                d = next_d
-
-        yield e
-        last = e
+    return stats
 
 
 def main():
     import argparse
-    from collections import defaultdict
 
     import reportor.graphite
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-t", "--tree", dest="tree", required=True, help="which tree to fetch")
+    parser.add_argument("--catch-up", dest="catch_up", action="store_true", help="re-submit all historical data")
 
     args = parser.parse_args()
 
-    events = load_treestatus(args.tree)
+    events = load_treestatus(args.tree, all=args.catch_up)
     # Sort by `when`
     events.sort(key=lambda e: e['when'])
 
     # Add an event for "now"
     now = events[-1].copy()
-    now['when'] = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
+    now['when'] = datetime.utcnow().strftime(TIME_FORMAT)
     events.append(now)
-
-    # Add up total times per day
-    # day -> mapping of state name to elapsed time
-    times_per_day = defaultdict(lambda: defaultdict(float))
-
-    for e in crystalball(daybreak(events)):
-        #print e['when'], e['action'], e['elapsed'], e['tags']
-        t = parse_time(e['when'])
-        names = []
-        if e['tags']:
-            for tag in e['tags']:
-                names.append('{action}.{tag}'.format(action=e['action'], tag=tag))
-        else:
-            names.append(e['action'])
-
-        elapsed = e['elapsed']
-
-        for n in names:
-            times_per_day[t.date()][n] += td2s(elapsed)
-            assert times_per_day[t.date()][n] >= 0
 
     graphite = reportor.graphite.graphite_from_config()
 
-    for day in sorted(times_per_day.keys()):
-        for state, time in sorted(times_per_day[day].iteritems()):
-            day = datetime(day.year, day.month, day.day)
-            print day, state, time
+    # For the past week, figure out the stats for the previous 24-hour period
+    # in 15 minute increments!
+    now = datetime.utcnow()
+    # Round it down to even 15 minute boundaries
+    now = now.replace(second=0, microsecond=0, minute=now.minute - (now.minute % 15))
+
+    start = parse_time(events[0]['when'])
+    # Round up to even 15 minute boundary
+    start = start.replace(second=0, microsecond=0, minute=start.minute + (15 - start.minute % 15))
+    end = start + timedelta(days=1)
+    while end < now:
+        stats = get_stats(events, start, end)
+        assert sum(stats.values()) == 86400
+        for k, v in stats.items():
+            state = k.replace(" ", "_")
+            print end, state, v
             if graphite:
                 graphite.submit(
                     "uptime.{0}.{1}".format(args.tree, state),
-                    time,
-                    dt2ts(day),
+                    v,
+                    dt2ts(end),
                 )
 
+        start += timedelta(seconds=60 * 15)
+        end = start + timedelta(days=1)
+
+    exit()
 
 if __name__ == '__main__':
     main()

@@ -83,6 +83,10 @@ def main():
     start = parse_time(events[0]['when'])
     # Round up to even 15 minute boundary
     start = start.replace(second=0, microsecond=0, minute=start.minute + (15 - start.minute % 15))
+
+    # Use the earliest event, or a month ago, whichever is later
+    start = max(start, now - timedelta(days=30))
+
     end = start + timedelta(days=1)
     while end < now:
         stats = get_stats(events, start, end)

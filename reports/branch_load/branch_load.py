@@ -60,7 +60,6 @@ def get_branch(build):
 
 def get_times(starttime, endtime):
     """Get the time spent per branch in the given time window"""
-
     # branch -> time spent in jobs for that branch
     times_by_branch = defaultdict(float)
     # (branch, rev) -> (push time, time spent in jobs for that revision)
@@ -113,6 +112,7 @@ def report_branch_times(times_by_branch, starttime, endtime):
                 branch_time,
                 endtime,
             )
+
 
 def report_rev_times(times_by_rev):
     # TODO: split out EC2 times here too?

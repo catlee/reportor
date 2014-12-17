@@ -64,6 +64,11 @@ def get_times(starttime, endtime):
     times_by_branch = defaultdict(float)
     # (branch, rev) -> (push time, time spent in jobs for that revision)
     times_by_rev = defaultdict(lambda: [None, 0.0])
+
+    # Make sure we submit 0 for all branches in case there's no data
+    for branch in get_branches():
+        times_by_branch[branch] = 0.0
+
     breqs = set()
     for build in get_builds(starttime, endtime):
         if build.branch is None:

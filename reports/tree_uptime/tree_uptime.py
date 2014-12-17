@@ -10,11 +10,11 @@ TIME_FORMAT = "%Y-%m-%dT%H:%M:%S"
 
 
 def load_treestatus(tree, all=False):
-    params = {}
+    params = {'format': 'json'}
     if all:
         params['all'] = '1'
     r = requests.get(TREESTATUS_URL.format(tree=tree), params=params).json()
-    return r
+    return r['logs']
 
 
 def parse_time(t):

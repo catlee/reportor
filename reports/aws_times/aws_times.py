@@ -29,12 +29,8 @@ def is_ec2(build):
     return ("-ec2" in build.slave_name) or ("-spot" in build.slave_name)
 
 
-def get_infra_metrics(starttime, endtime):
+def get_infra_metrics(start, end):
     status_db = reportor.db.db_from_config('status_db')
-
-    now = time.time()
-    start = now - 86400
-    end = now
 
     builds = get_builds(status_db, start, end)
 

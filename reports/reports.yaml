@@ -134,6 +134,6 @@ tree_uptime_try:
     cwd: tree_uptime
     command: python tree_uptime.py -t try
 
-bugzilla_reports:
+ec2_cost:
     when: hourly
-    command: python bugzilla_reports.py
+    command: python ec2_cost.py

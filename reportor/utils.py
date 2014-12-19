@@ -11,6 +11,7 @@ def dt2ts(dt):
     """Converts a datetime object to a epoch timestamp. Assumes that the datetime object is already in UTC time."""
     return calendar.timegm(dt.utctimetuple())
 
+
 def avg(l):
     """Returns the average value of list l"""
     return sum(l) / float(len(l))

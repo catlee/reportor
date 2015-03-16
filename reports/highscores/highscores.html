@@ -104,21 +104,11 @@
         $("#footer").html("For pushes from " + gData['fromdate'] + " to " + gData['todate'] + ". " +
                           "Generated at " + gData['generated'] + " in " + Math.floor(gData['reporttime']) + "s.");
     }
-    function splashScreen() {
-      $("body").css("visibility", "hidden");
-      $("html").addClass("splash");
-      setTimeout(function() {
-        $("html").removeClass("splash");
-        $("body").css("visibility", "visible");
-        setTimeout(splashScreen, 20000);
-      }, 5000);
-    }
     $(document).ready(function() {
             // Load the scores
             $.getJSON("highscores.json",
               function(data) {
                 gData = data; updateScores();
-                setTimeout(splashScreen, 20000);
                });
         });
 </script>

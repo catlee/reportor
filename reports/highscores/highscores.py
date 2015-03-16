@@ -26,7 +26,8 @@ def get_job_info(branch, revision):
             r.json()
             break
         except Exception:
-            time.sleep(5)
+            logging.exception("error fetching data from %s", baseurl)
+            time.sleep(30)
             continue
     else:
         raise ValueError("Couldn't load data from %s" % baseurl)

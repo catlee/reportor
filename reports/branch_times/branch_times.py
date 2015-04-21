@@ -26,7 +26,6 @@ q = sa.text("""
         """)
 
 now = time.time()
-now = 1366862400  # Apr 25, 2013
 starttime = now - 21 * 816400
 endtime = now
 

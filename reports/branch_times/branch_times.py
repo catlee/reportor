@@ -26,7 +26,7 @@ q = sa.text("""
         """)
 
 now = time.time()
-starttime = now - 14 * 816400
+starttime = now - 14 * 86400
 endtime = now
 
 builds = scheduler_db.execute(q, buildername = '%mozilla-central%', starttime=starttime, endtime=endtime)

@@ -38,16 +38,6 @@ end2end_try:
         - flot/
         - end2end.html
 
-hidden:
-    when: hourly
-    command: python hidden.py
-    stdout: hidden.json
-    locks: [status_db]
-    copy_files:
-        - "*.html"
-        - "*.css"
-        - flot/
-
 long_jobs:
     when: hourly
     command: python long_jobs.py

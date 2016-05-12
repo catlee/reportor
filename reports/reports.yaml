@@ -107,6 +107,6 @@ tree_uptime_try:
     command: python tree_uptime.py -t try
 
 pending:
-    when: hourly
+    when: fivemins
     command: python pending.py
     stdout: pending.json

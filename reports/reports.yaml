@@ -106,10 +106,6 @@ tree_uptime_try:
     cwd: tree_uptime
     command: python tree_uptime.py -t try
 
-ec2_cost:
-    when: hourly
-    command: python ec2_cost.py
-
 pending:
     when: hourly
     command: python pending.py

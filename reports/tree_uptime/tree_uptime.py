@@ -4,17 +4,17 @@ import requests
 from reportor.utils import dt2ts, td2s
 from collections import defaultdict
 
-TREESTATUS_URL = "https://treestatus.mozilla.org/{tree}/logs"
+TREESTATUS_URL = "https://api.pub.build.mozilla.org/treestatus/trees/{tree}/logs"
 
-TIME_FORMAT = "%Y-%m-%dT%H:%M:%S"
+TIME_FORMAT = "%Y-%m-%dT%H:%M:%S+00:00"
 
 
 def load_treestatus(tree, all=False):
-    params = {'format': 'json'}
+    params = {}
     if all:
         params['all'] = '1'
-    r = requests.get(TREESTATUS_URL.format(tree=tree), params=params).json()
-    return r['logs']
+    r = requests.get(TREESTATUS_URL.format(tree=tree), params=params)
+    return r.json()['result']
 
 
 def parse_time(t):
@@ -41,7 +41,7 @@ def get_stats(events, start, end):
             e_time = end
             done = True
 
-        last_state = last['action']
+        last_state = last['status']
         elapsed = td2s(e_time - parse_time(last['when']))
         assert elapsed >= 0
         stats[last_state] += elapsed

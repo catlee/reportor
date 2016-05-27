@@ -17,6 +17,7 @@ def pool_for_builder(allthethings, buildername):
         pool = first_name.rsplit("-", 1)[0]
         return pool
     except:
+        logging.warning('%s: unknown pool', buildername)
         logging.debug('%s: unknown pool', buildername, exc_info=True)
         return 'unknown'
 

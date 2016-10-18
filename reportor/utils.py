@@ -8,8 +8,13 @@ def td2s(td):
 
 
 def dt2ts(dt):
-    """Converts a datetime object to a epoch timestamp. Assumes that the datetime object is already in UTC time."""
+    """Converts a datetime object to a epoch timestamp. Assumes that the
+    datetime object is already in UTC time."""
     return calendar.timegm(dt.utctimetuple())
+
+
+def date2ts(d):
+    return calendar.timegm(d.timetuple())
 
 
 def avg(l):

@@ -18,15 +18,19 @@ def get_size(url):
 
 def get_taskId(branch, platform, d):
     # Find the task first
-    if branch in ('mozilla-central', 'mozilla-aurora'):
-        return get_nightly_taskId(branch, platform, d)
+    if platform.startswith('android'):
+        product = 'mobile'
     else:
-        return get_release_taskId(branch, platform, d)
+        product = 'firefox'
+    if branch in ('mozilla-central', 'mozilla-aurora'):
+        return get_nightly_taskId(branch, platform, d, product)
+    else:
+        return get_release_taskId(branch, platform, d, product)
 
 
-def get_nightly_taskId(branch, platform, d):
+def get_nightly_taskId(branch, platform, d, product):
     d = d.strftime('%Y.%m.%d')
-    url = 'https://index.taskcluster.net/v1/task/gecko.v2.{branch}.nightly.{d}.latest.firefox.{platform}-opt'.format(branch=branch, platform=platform, d=d)
+    url = 'https://index.taskcluster.net/v1/task/gecko.v2.{branch}.nightly.{d}.latest.{product}.{platform}-opt'.format(branch=branch, platform=platform, d=d, product=product)
     response = requests.get(url)
     if response.status_code == 404:
         return None
@@ -69,6 +73,10 @@ def get_installer_artifact(artifacts):
             return a['name']
         elif a['name'].endswith('.mac.dmg'):
             return a['name']
+        elif a['name'].endswith('android-arm.apk'):
+            return a['name']
+        elif a['name'].endswith('android-i386.apk'):
+            return a['name']
 
 
 def get_complete_artifact(artifacts):
@@ -99,12 +107,19 @@ def get_sizes(branch, p, d, lastbuildid):
         return
     artifacts = get_artifacts(taskId)
     installer = get_installer_artifact(artifacts)
-    complete = get_complete_artifact(artifacts)
-    buildprops = get_buildprops(taskId)
-    if not installer or not complete:
-        print 'Couldn\'t find installer or complete for', branch, p, taskId, d
+    if not installer:
+        print 'Couldn\'t find installer for', branch, p, taskId, d
         return
+    installer_size = get_size(get_artifact_url(taskId, installer))
 
+    complete = get_complete_artifact(artifacts)
+    if complete:
+        complete_size = get_size(get_artifact_url(taskId, complete))
+    else:
+        print 'Couldn\'t find complete for', branch, p, taskId, d
+        complete_size = None
+
+    buildprops = get_buildprops(taskId)
     if buildprops:
         buildid = buildprops.get('properties', {}).get('buildid')
         version = buildprops.get('properties', {}).get('appVersion')
@@ -122,8 +137,6 @@ def get_sizes(branch, p, d, lastbuildid):
     else:
         partial_size = None
 
-    installer_size = get_size(get_artifact_url(taskId, installer))
-    complete_size = get_size(get_artifact_url(taskId, complete))
 
     return dict(
         installer_size=installer_size,
@@ -136,7 +149,7 @@ def main():
     import reportor.graphite
     graphite = reportor.graphite.graphite_from_config()
 
-    platforms = ['linux64', 'win32', 'win64', 'macosx64']
+    platforms = ['linux64', 'win32', 'win64', 'macosx64', 'android-api-15', 'android-x86']
     branches = ['mozilla-central', 'mozilla-aurora']
 
     oneday = timedelta(days=1)
@@ -155,7 +168,8 @@ def main():
                 if not sizes:
                     continue
                 graphite.submit('release_sizes.{}.{}.installer'.format(branch, p), sizes['installer_size'], date2ts(d))
-                graphite.submit('release_sizes.{}.{}.complete'.format(branch, p), sizes['complete_size'], date2ts(d))
+                if sizes['complete_size']:
+                    graphite.submit('release_sizes.{}.{}.complete'.format(branch, p), sizes['complete_size'], date2ts(d))
                 if sizes['partial_size']:
                     graphite.submit('release_sizes.{}.{}.partial'.format(branch, p), sizes['partial_size'], date2ts(d))
 

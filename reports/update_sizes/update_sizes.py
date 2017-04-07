@@ -79,6 +79,8 @@ def get_installer_artifact(artifacts):
             return a['name']
         elif a['name'].endswith('android-i386.apk'):
             return a['name']
+        elif a['name'].endswith('target.apk'):
+            return a['name']
 
 
 def get_complete_artifact(artifacts):

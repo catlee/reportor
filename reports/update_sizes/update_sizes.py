@@ -71,6 +71,8 @@ def get_installer_artifact(artifacts):
             return a['name']
         elif a['name'].endswith('linux-x86_64.tar.bz2') or a['name'].endswith('linux-i686.tar.bz2'):
             return a['name']
+        elif a['name'].endswith('target.tar.bz2'):
+            return a['name']
         elif a['name'].endswith('.mac.dmg'):
             return a['name']
         elif a['name'].endswith('android-arm.apk'):
@@ -87,6 +89,11 @@ def get_complete_artifact(artifacts):
 
 def get_buildprops(taskId):
     url = get_artifact_url(taskId, 'public/build/buildbot_properties.json')
+    resp = requests.get(url)
+    if resp.status_code == 200:
+        return resp.json()
+
+    url = get_artifact_url(taskId, 'public/build/balrog_props.json')
     resp = requests.get(url)
     if resp.status_code == 200:
         return resp.json()

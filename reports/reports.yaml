@@ -19,33 +19,6 @@ branch_load:
     command: python branch_load.py
     locks: [scheduler_db]
 
-long_jobs:
-    when: hourly
-    command: python long_jobs.py
-    stdout: long_jobs.json
-    locks: [status_db]
-    copy_files:
-        - jquery.js
-        - long_jobs.html
-
-coalescing:
-    when: hourly
-    command: python coalescing.py
-    stdout: coalescing.json
-    locks: [status_db]
-    copy_files:
-        - flot/
-        - coalescing.html
-
-retries:
-    when: hourly
-    command: python retries.py
-    stdout: retries.json
-    locks: [status_db]
-    copy_files:
-        - flot/
-        - retries.html
-
 running_jobs:
     when: hourly
     command: python running_jobs.py
@@ -55,37 +28,12 @@ running_jobs:
         - flot/
         - running_jobs.html
 
-compute_time:
-    when: hourly
-    command: python compute_time.py
-    stdout: compute_time.js
-    locks: [scheduler_db]
-    copy_files:
-        - flot/
-        - compute_time.html
-
-build_steps:
-    when: daily
-    command: python build_steps.py
-    locks: [status_db]
-    copy_files:
-        - steps.csv.gz
-
 machine_sanity:
     when: daily
     command: python machine_sanity.py
     stdout: machine_sanity.txt
     copy_files:
         - usable_slaves.json
-
-tree_uptime:
-    when: daily
-    command: python tree_uptime.py -t mozilla-inbound
-
-tree_uptime_try:
-    when: daily
-    cwd: tree_uptime
-    command: python tree_uptime.py -t try
 
 pending:
     when: fivemins

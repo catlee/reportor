@@ -1,33 +1,3 @@
-highscores:
-    when: daily
-    copy_files:
-        - "*.png"
-        - "*.css"
-        - "*.js"
-        - "*.json"
-        - "*.html"
-    command: python highscores.py
-    stdout: highscores.json
-
-branch_times:
-    when: daily
-    command: python branch_times.py
-    locks: [scheduler_db]
-
-branch_load:
-    when: daily
-    command: python branch_load.py
-    locks: [scheduler_db]
-
-running_jobs:
-    when: hourly
-    command: python running_jobs.py
-    stdout: running_jobs.js
-    locks: [scheduler_db]
-    copy_files:
-        - flot/
-        - running_jobs.html
-
 machine_sanity:
     when: daily
     command: python machine_sanity.py

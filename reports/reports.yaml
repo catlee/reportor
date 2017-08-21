@@ -11,5 +11,5 @@ pending:
     stdout: pending.json
 
 update_sizes:
-    when: daily
+    when: hourly
     command: python update_sizes.py

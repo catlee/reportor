@@ -3,11 +3,12 @@
 Fetch and report sizes for complete and partial updates, and full installers
 For different branches and platforms
 """
-
 import requests
 from datetime import datetime, date, timedelta
 
 from reportor.utils import date2ts
+
+AUS_API_ROOT = 'https://aus-api.mozilla.org/api/v1'
 
 
 def get_size(url):
@@ -16,174 +17,199 @@ def get_size(url):
     return int(response.headers['content-length'])
 
 
+def url_exists(url):
+    response = requests.head(url, allow_redirects=True)
+    return response.status_code == 200
+
+
 def get_taskId(branch, platform, d):
     # Find the task first
     if platform.startswith('android'):
         product = 'mobile'
     else:
         product = 'firefox'
-    if branch in ('mozilla-central', 'mozilla-aurora'):
-        return get_nightly_taskId(branch, platform, d, product)
-    else:
-        return get_release_taskId(branch, platform, d, product)
+    return get_nightly_taskId(branch, platform, d, product)
 
 
-def get_nightly_taskId(branch, platform, d, product):
-    d = d.strftime('%Y.%m.%d')
-    url = 'https://index.taskcluster.net/v1/task/gecko.v2.{branch}.nightly.{d}.latest.{product}.{platform}-opt'.format(branch=branch, platform=platform, d=d, product=product)
-    response = requests.get(url)
-    if response.status_code == 404:
-        return None
-    response.raise_for_status()
-    taskId = response.json()['taskId']
-    return taskId
+def get_rule_mapping(rule_id):
+    rule = requests.get('{}/rules/{}'.format(AUS_API_ROOT, rule_id)).json()
+    return rule['mapping']
 
 
-def get_release_taskId(branch, platform, d):
-    d = d.strftime('%Y.%m.%d')
-    url = 'https://index.taskcluster.net/v1/namespaces/gecko.v2.{branch}.pushdate.{d}'.format(branch=branch, platform=platform, d=d)
-    response = requests.post(url, data='{}', headers={'Content-Type': 'application/json'})
-    if response.status_code == 404:
-        return None
-    response.raise_for_status()
-    namespaces = response.json()['namespaces']
-    # Pick the latest one
-    for namespace in sorted([n['namespace'] for n in namespaces], reverse=True):
-        url = 'https://index.taskcluster.net/v1/task/{namespace}.firefox.{platform}-opt'.format(namespace=namespace, platform=platform)
-        response = requests.get(url)
-        if response.status_code == 404:
+def get_release_blob(blob_name):
+    blob = requests.get('{}/releases/{}'.format(AUS_API_ROOT, blob_name)).json()
+    return blob
+
+
+def get_blobs_by_prefix(blob_prefix):
+    blobs = requests.get('{}/releases'.format(AUS_API_ROOT)).json()
+    return [r['name'] for r in blobs['releases'] if r['name'].startswith(blob_prefix)]
+
+
+def format_bouncer_url(url, platform, locale):
+    platform = {
+        'win32': 'win',
+        'macosx64': 'osx',
+    }.get(platform, platform)
+    url = url.replace('%OS_BOUNCER%', platform)
+    url = url.replace('%LOCALE%', locale)
+    return url
+
+
+def get_sizes_from_blob(blob, channel):
+    fileUrls = blob['fileUrls'].get(channel, blob['fileUrls']['*'])
+    complete_url_b = fileUrls['completes']['*']
+    partial_urls_b = []
+    for name, url in fileUrls['partials'].items():
+        # Ignore beta names
+        if channel == 'release' and '.0b' in name:
             continue
-        response.raise_for_status()
-        taskId = response.json()['taskId']
-        return taskId
+        partial_urls_b.append(url)
+    retval = {}
+    for platform in ('linux64', 'win64', 'win32', 'macosx64'):
+        url = format_bouncer_url(complete_url_b, platform, 'en-US')
+        size = get_size(url)
+
+        retval[platform] = dict(
+            complete_size=size,
+            installer_size=None,
+            partial_size=None,
+        )
+
+        installer_url = url.replace('-complete', '-SSL')
+        if url_exists(installer_url):
+            retval[platform]['installer_size'] = get_size(installer_url)
+
+        partial_sizes = []
+        for url in partial_urls_b:
+            url = format_bouncer_url(url, platform, 'en-US')
+            size = get_size(url)
+            partial_sizes.append(size)
+        if partial_sizes:
+            retval[platform]['partial_size'] = min(partial_sizes)
+    return retval
 
 
-def get_artifacts(taskId):
-    # List the artifacts
-    url = 'https://queue.taskcluster.net/v1/task/{taskId}/artifacts'.format(taskId=taskId)
-    artifacts = requests.get(url).json()['artifacts']
-    return artifacts
+def get_sizes_from_nightly_blob(blob, channel):
+    platforms = [
+        ('macosx64', 'Darwin_x86_64-gcc3-u-i386-x86_64'),
+        ('linux64', 'Linux_x86_64-gcc3'),
+        ('win32', 'WINNT_x86-msvc'),
+        ('win64', 'WINNT_x86_64-msvc'),
+    ]
+    retval = {}
+    for platform, aus_platform in platforms:
+        complete_url = blob['platforms'][aus_platform]['locales']['en-US']['completes'][0]['fileUrl']
+        size = get_size(complete_url)
+
+        retval[platform] = dict(
+            complete_size=size,
+            partial_size=None,
+        )
+        if 'partials' not in blob['platforms'][aus_platform]['locales']['en-US']:
+            continue
+        partial_urls = [p['fileUrl'] for p in blob['platforms'][aus_platform]['locales']['en-US']['partials']]
+        partial_sizes = []
+        for url in partial_urls:
+            size = get_size(url)
+            partial_sizes.append(size)
+        if partial_sizes:
+            retval[platform]['partial_size'] = min(partial_sizes)
+    return retval
 
 
-def get_installer_artifact(artifacts):
-    for a in artifacts:
-        if a['name'].endswith('.installer.exe'):
-            return a['name']
-        elif a['name'].endswith('linux-x86_64.tar.bz2') or a['name'].endswith('linux-i686.tar.bz2'):
-            return a['name']
-        elif a['name'].endswith('target.tar.bz2'):
-            return a['name']
-        elif a['name'].endswith('.mac.dmg'):
-            return a['name']
-        elif a['name'].endswith('android-arm.apk'):
-            return a['name']
-        elif a['name'].endswith('android-i386.apk'):
-            return a['name']
-        elif a['name'].endswith('target.apk'):
-            return a['name']
+def get_beta_update_sizes():
+    blob_name = get_rule_mapping('firefox-beta')
+    blob = get_release_blob(blob_name)
+    update_sizes = get_sizes_from_blob(blob, 'beta')
+    return update_sizes
 
 
-def get_complete_artifact(artifacts):
-    for a in artifacts:
-        if a['name'].endswith('.complete.mar'):
-            return a['name']
+def get_release_update_sizes():
+    blob_name = get_rule_mapping('firefox-release')
+    blob = get_release_blob(blob_name)
+    update_sizes = get_sizes_from_blob(blob, 'release')
+    return update_sizes
 
 
-def get_buildprops(taskId):
-    url = get_artifact_url(taskId, 'public/build/buildbot_properties.json')
-    resp = requests.get(url)
-    if resp.status_code == 200:
-        return resp.json()
-
-    url = get_artifact_url(taskId, 'public/build/balrog_props.json')
-    resp = requests.get(url)
-    if resp.status_code == 200:
-        return resp.json()
+def get_nightly_update_sizes(branch, date):
+    blob_prefix = 'Firefox-{branch}-nightly-{date}'.format(date=date, branch=branch)
+    blob_name = get_blobs_by_prefix(blob_prefix)[0]
+    blob = get_release_blob(blob_name)
+    update_sizes = get_sizes_from_nightly_blob(blob, 'nightly')
+    return update_sizes
 
 
-def get_artifact_url(taskId, artifact):
-    return 'https://queue.taskcluster.net/v1/task/{taskId}/artifacts/{artifact}'.format(taskId=taskId, artifact=artifact)
+def get_release_sizes(graphite, branches):
+    for branch in branches:
+        if branch == 'mozilla-beta':
+            sizes = get_beta_update_sizes()
+        elif branch == 'mozilla-release':
+            sizes = get_release_update_sizes()
+        else:
+            print "Don't know how to handle branch", branch
+            continue
+
+        for platform, sizes in sizes.items():
+            print platform, sizes
+            if sizes['installer_size']:
+                graphite.submit('release_sizes.{}.{}.installer'.format(branch, platform), sizes['installer_size'])
+            if sizes['complete_size']:
+                graphite.submit('release_sizes.{}.{}.complete'.format(branch, platform), sizes['complete_size'])
+            if sizes['partial_size']:
+                graphite.submit('release_sizes.{}.{}.partial'.format(branch, platform), sizes['partial_size'])
 
 
-def get_partial_url(branch, platform, version, buildid, lastbuildid):
-    return 'https://s3.amazonaws.com/mozilla-nightly-updates/{branch}/{buildid}/Firefox-{branch}-{version}-{platform}-en-US-{lastbuildid}-{buildid}.partial.mar'.format(branch=branch, platform=platform, buildid=buildid, lastbuildid=lastbuildid, version=version)
+def get_nightly_installer_sizes(branch):
+    platforms = ['linux64', 'macosx64', 'win32', 'win64']
+    retval = {}
+    for p in platforms:
+        url = format_bouncer_url(
+            'https://download.mozilla.org/?product=firefox-nightly-latest-ssl&os=%OS_BOUNCER%&lang=%LOCALE%',
+            p,
+            'en-US',
+        )
+        retval[p] = {'installer_size': get_size(url)}
+    return retval
 
 
-def get_sizes(branch, p, d, lastbuildid):
-    taskId = get_taskId(branch, p, d)
-    if not taskId:
-        print 'Couldn\'t find task for', branch, p, d
-        return
-    artifacts = get_artifacts(taskId)
-    installer = get_installer_artifact(artifacts)
-    if not installer:
-        print 'Couldn\'t find installer for', branch, p, taskId, d
-        return
-    installer_size = get_size(get_artifact_url(taskId, installer))
-
-    complete = get_complete_artifact(artifacts)
-    if complete:
-        complete_size = get_size(get_artifact_url(taskId, complete))
-    else:
-        print 'Couldn\'t find complete for', branch, p, taskId, d
-        complete_size = None
-
-    buildprops = get_buildprops(taskId)
-    if buildprops:
-        buildid = buildprops.get('properties', {}).get('buildid')
-        version = buildprops.get('properties', {}).get('appVersion')
-    else:
-        buildid = None
-        version = None
-
-    if lastbuildid and buildid and version:
-        partial_url = get_partial_url(branch, p, version, lastbuildid, buildid)
-        try:
-            partial_size = get_size(partial_url)
-        except IOError:
-            print 'Couldn\'t get partial size for', branch, p, d, partial_url
-            partial_size = None
-    else:
-        partial_size = None
-
-    return dict(
-        installer_size=installer_size,
-        complete_size=complete_size,
-        partial_size=partial_size,
-        buildid=buildid)
-
-
-def main():
-    import reportor.graphite
-    graphite = reportor.graphite.graphite_from_config()
-
-    platforms = ['linux64', 'win32', 'win64', 'macosx64', 'android-api-15', 'android-x86']
-    branches = ['mozilla-central']
-
+def get_nightly_sizes(graphite, branches):
     oneday = timedelta(days=1)
     today = date.today()
 
     days = 5
 
     for branch in branches:
-        for p in platforms:
-            d = today
-            taskId = None
-            lastbuildid = None
-            for i in range(days):
-                d = today - i * oneday
-                sizes = get_sizes(branch, p, d, lastbuildid)
-                if not sizes:
-                    continue
-                graphite.submit('release_sizes.{}.{}.installer'.format(branch, p), sizes['installer_size'], date2ts(d))
+        d = today
+        sizes = get_nightly_installer_sizes(branch)
+        ts = date2ts(d)
+        for platform, sizes in sizes.items():
+            print platform, sizes
+            if sizes['installer_size']:
+                graphite.submit('release_sizes.{}.{}.installer'.format(branch, platform), sizes['installer_size'], ts)
+
+        for i in range(days):
+            d = today - i * oneday
+            ts = date2ts(d)
+            sizes = get_nightly_update_sizes(branch, d.strftime('%Y%m%d'))
+            if not sizes:
+                continue
+            for platform, sizes in sizes.items():
+                print platform, sizes
                 if sizes['complete_size']:
-                    graphite.submit('release_sizes.{}.{}.complete'.format(branch, p), sizes['complete_size'], date2ts(d))
+                    graphite.submit('release_sizes.{}.{}.complete'.format(branch, platform), sizes['complete_size'], ts)
                 if sizes['partial_size']:
-                    graphite.submit('release_sizes.{}.{}.partial'.format(branch, p), sizes['partial_size'], date2ts(d))
+                    graphite.submit('release_sizes.{}.{}.partial'.format(branch, platform), sizes['partial_size'], ts)
 
-                lastbuildid = sizes['buildid']
-                print d, branch, p, sizes
+def main():
+    import reportor.graphite
+    graphite = reportor.graphite.graphite_from_config()
 
+    nightly_branches = ['mozilla-central']
+    release_branches = ['mozilla-beta', 'mozilla-release']
+
+    get_release_sizes(graphite, release_branches)
+    get_nightly_sizes(graphite, nightly_branches)
 
 if __name__ == '__main__':
     main()

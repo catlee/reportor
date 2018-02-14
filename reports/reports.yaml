@@ -4,12 +4,3 @@ machine_sanity:
     stdout: machine_sanity.txt
     copy_files:
         - usable_slaves.json
-
-pending:
-    when: fivemins
-    command: python pending.py
-    stdout: pending.json
-
-update_sizes:
-    when: hourly
-    command: python update_sizes.py
